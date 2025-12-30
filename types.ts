@@ -15,6 +15,12 @@ export enum Subject {
   English = "English & Literature"
 }
 
+export interface User {
+  name: string;
+  email: string;
+  avatar?: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';

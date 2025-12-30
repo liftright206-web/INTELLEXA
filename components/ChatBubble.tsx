@@ -21,6 +21,8 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
     });
   };
 
+  const isArchitected = !isUser && message.content.includes("architected a visual aid");
+
   return (
     <div className={`flex w-full mb-6 ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div className={`flex max-w-[85%] md:max-w-[80%] ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start gap-3`}>
@@ -46,9 +48,32 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
           }`}>
             {renderContent(message.content)}
             {message.attachments && message.attachments.length > 0 && (
-              <div className="mt-3 grid grid-cols-1 gap-2">
+              <div className="mt-3 space-y-3">
                 {message.attachments.map((img, idx) => (
-                  <img key={idx} src={img} alt="attachment" className="rounded-lg max-h-60 w-auto object-contain border border-zinc-800 shadow-lg" />
+                  <div key={idx} className="relative group">
+                    {isArchitected && (
+                      <div className="absolute top-2 left-2 z-10 px-2 py-1 bg-black/60 backdrop-blur-md rounded-md text-[9px] font-bold text-zinc-100 uppercase tracking-widest border border-zinc-700 shadow-xl pointer-events-none">
+                        <i className="fas fa-cube mr-1 text-zinc-400"></i>
+                        Architect Render
+                      </div>
+                    )}
+                    <img 
+                      src={img} 
+                      alt="attachment" 
+                      className="rounded-lg max-h-80 w-auto object-contain border border-zinc-800 shadow-lg group-hover:border-zinc-500 transition-colors" 
+                    />
+                    <button 
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = img;
+                        link.download = `intellexa-render-${Date.now()}.png`;
+                        link.click();
+                      }}
+                      className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 bg-black/60 backdrop-blur-md text-white p-2 rounded-lg text-xs hover:bg-black/80 transition-all border border-zinc-700"
+                    >
+                      <i className="fas fa-download"></i>
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

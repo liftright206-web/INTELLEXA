@@ -2,12 +2,21 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Layout from './components/Layout';
 import ChatBubble from './components/ChatBubble';
-import { GradeLevel, Subject, Message, ChatSession } from './types';
-import { getStreamingTutorResponse } from './services/geminiService';
+import LandingPage from './components/LandingPage';
+import Auth from './components/Auth';
+import { GradeLevel, Subject, Message, ChatSession, User } from './types';
+import { getStreamingTutorResponse, generateTutorImage } from './services/geminiService';
 
 const STORAGE_KEY = 'intellexa_history_v1';
+const USER_KEY = 'intellexa_user_v1';
 
 const App: React.FC = () => {
+  const [view, setView] = useState<'landing' | 'auth' | 'chat'>('landing');
+  const [user, setUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem(USER_KEY);
+    return saved ? JSON.parse(saved) : null;
+  });
+  
   const [sessions, setSessions] = useState<ChatSession[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -31,22 +40,25 @@ const App: React.FC = () => {
 
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Save to localStorage whenever sessions change
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
   }, [sessions]);
 
-  // Handle auto-scroll
+  useEffect(() => {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  }, [user]);
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [activeSessionId, sessions, isTyping]);
+  }, [activeSessionId, sessions, isTyping, isGeneratingImage]);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const messages = activeSession ? activeSession.messages : [];
@@ -59,7 +71,7 @@ const App: React.FC = () => {
       messages: [{
         id: 'welcome',
         role: 'assistant',
-        content: "Hi there! I'm Intellexa, your study buddy. 🎓\n\nI'm ready to help you explore any concept, solve complex problems, or visualize ideas through flowcharts. There are no limits to what we can learn together.\n\nWhat are we exploring today?",
+        content: `Hi ${user?.name || 'there'}! I'm Intellexa, your study buddy. 🎓\n\nI'm ready to help you explore any concept, solve complex problems, or visualize ideas through flowcharts and realistic 3D models. What are we exploring today?`,
         timestamp: new Date()
       }],
       createdAt: new Date(),
@@ -68,13 +80,8 @@ const App: React.FC = () => {
     };
     setSessions([newSession, ...sessions]);
     setActiveSessionId(newId);
+    setView('chat');
   };
-
-  useEffect(() => {
-    if (sessions.length === 0) {
-      handleNewChat();
-    }
-  }, []);
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -89,18 +96,7 @@ const App: React.FC = () => {
       attachments: pendingImage ? [pendingImage] : []
     };
 
-    let updatedSessions = sessions.map(s => {
-      if (s.id === activeSessionId) {
-        const newTitle = s.messages.length <= 1 ? (inputValue.substring(0, 30) || "Visual Learning") : s.title;
-        return { 
-          ...s, 
-          title: newTitle,
-          messages: [...s.messages, userMessage] 
-        };
-      }
-      return s;
-    });
-    setSessions(updatedSessions);
+    setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, userMessage] } : s));
 
     setInputValue('');
     const currentPendingImage = pendingImage;
@@ -143,19 +139,51 @@ const App: React.FC = () => {
       }
     } catch (error) {
       console.error(error);
-      setSessions(prev => prev.map(s => {
-        if (s.id === activeSessionId) {
-          return {
-            ...s,
-            messages: s.messages.map(msg => 
-              msg.id === assistantMsgId ? { ...msg, content: "Oops! I hit a snag. Check your internet or API key and try asking again. 😅" } : msg
-            )
-          };
-        }
-        return s;
-      }));
+      setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: s.messages.map(msg => msg.id === assistantMsgId ? { ...msg, content: "Oops! I hit a snag. Check your API key." } : msg) } : s));
     } finally {
       setIsTyping(false);
+    }
+  };
+
+  const handleGenerateVisual = async () => {
+    if (!activeSessionId || !inputValue.trim()) return;
+    
+    const prompt = inputValue;
+    setInputValue('');
+    setIsGeneratingImage(true);
+
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: `Please architect a visual for: ${prompt}`,
+      timestamp: new Date()
+    };
+    setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, userMsg] } : s));
+
+    try {
+      const imageUrl = await generateTutorImage(prompt);
+      if (imageUrl) {
+        const assistantMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: `I've architected a visual aid for: **${prompt}**. This high-fidelity render should help clarify the spatial and structural details of the concept.`,
+          timestamp: new Date(),
+          attachments: [imageUrl]
+        };
+        setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, assistantMsg] } : s));
+      } else {
+        throw new Error("Failed to generate image");
+      }
+    } catch (error) {
+      const errorMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "I'm sorry, I couldn't architect that visual right now. My rendering engine encountered an error.",
+        timestamp: new Date()
+      };
+      setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, errorMsg] } : s));
+    } finally {
+      setIsGeneratingImage(false);
     }
   };
 
@@ -170,17 +198,13 @@ const App: React.FC = () => {
           setInputValue(prev => `${prev}\n[Attached File: ${file.name}]`);
         }
       };
-      
-      if (file.type.startsWith('image/')) {
-        reader.readAsDataURL(file);
-      } else {
-        reader.readAsText(file);
-      }
+      if (file.type.startsWith('image/')) reader.readAsDataURL(file);
+      else reader.readAsText(file);
     }
   };
 
   const clearAllHistory = () => {
-    if (window.confirm("Delete ALL your study history? This cannot be undone.")) {
+    if (window.confirm("Delete ALL history?")) {
       setSessions([]);
       setActiveSessionId('');
       localStorage.removeItem(STORAGE_KEY);
@@ -191,31 +215,53 @@ const App: React.FC = () => {
   const deleteSession = (id: string) => {
     const filtered = sessions.filter(s => s.id !== id);
     setSessions(filtered);
-    if (activeSessionId === id) {
-      setActiveSessionId(filtered.length > 0 ? filtered[0].id : '');
+    if (activeSessionId === id) setActiveSessionId(filtered.length > 0 ? filtered[0].id : '');
+  };
+
+  const handleLogin = (loggedInUser: User) => {
+    setUser(loggedInUser);
+    if (sessions.length > 0) {
+      setView('chat');
+    } else {
+      handleNewChat();
     }
   };
+
+  const handleLogout = () => {
+    setUser(null);
+    setView('landing');
+    localStorage.removeItem(USER_KEY);
+  };
+
+  const handleStartClicked = () => {
+    if (user) {
+      if (sessions.length > 0) setView('chat');
+      else handleNewChat();
+    } else {
+      setView('auth');
+    }
+  };
+
+  if (view === 'landing') return <LandingPage onStart={handleStartClicked} />;
+  if (view === 'auth') return <Auth onLogin={handleLogin} onBack={() => setView('landing')} />;
 
   return (
     <Layout 
       sessions={sessions}
       activeSessionId={activeSessionId}
+      user={user}
       onSessionSelect={setActiveSessionId}
       onNewChat={handleNewChat}
       onDeleteSession={deleteSession}
       onReset={clearAllHistory}
+      onGoHome={() => setView('landing')}
+      onLogout={handleLogout}
     >
       <div className="flex flex-col h-full bg-black">
-        {/* Messages List */}
-        <div 
-          ref={scrollRef}
-          className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 custom-scrollbar"
-        >
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 custom-scrollbar">
           <div className="max-w-4xl mx-auto">
-            {messages.map((msg) => (
-              <ChatBubble key={msg.id} message={msg} />
-            ))}
-            {isTyping && (
+            {messages.map((msg) => <ChatBubble key={msg.id} message={msg} />)}
+            {(isTyping || isGeneratingImage) && (
               <div className="flex justify-start mb-6">
                 <div className="bg-zinc-900 border border-zinc-800 px-4 py-3 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-3">
                   <div className="flex gap-1">
@@ -223,53 +269,21 @@ const App: React.FC = () => {
                     <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
                     <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
                   </div>
-                  <span className="text-xs text-zinc-500 font-medium tracking-tight">Intellexa is analyzing...</span>
+                  <span className="text-xs text-zinc-500 font-medium tracking-tight">
+                    {isGeneratingImage ? "Architecting visual aid..." : "Intellexa is analyzing..."}
+                  </span>
                 </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Suggestion Chips */}
-        <div className="px-4 py-2 border-t border-zinc-900 bg-zinc-950/30 backdrop-blur-md">
-          <div className="max-w-4xl mx-auto flex gap-2 overflow-x-auto no-scrollbar py-2">
-            <button 
-              onClick={() => { setInputValue("Can you turn the above concept into a visual flowchart?"); }}
-              className="whitespace-nowrap px-4 py-2 bg-zinc-100/5 border border-zinc-700/50 rounded-full text-xs font-bold text-zinc-300 hover:bg-zinc-800 transition-all shadow-sm"
-            >
-              📊 Create Flowchart
-            </button>
-            <button 
-              onClick={() => { setInputValue("Explain this in simple terms with a real-life analogy."); }}
-              className="whitespace-nowrap px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-full text-xs font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 transition-all shadow-sm"
-            >
-              💡 Simple Analogy
-            </button>
-            <button 
-              onClick={() => { setInputValue("Give me a quick 3-question quiz to test my understanding."); }}
-              className="whitespace-nowrap px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-full text-xs font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 transition-all shadow-sm"
-            >
-              📝 Quick Quiz
-            </button>
-            <button 
-              onClick={() => { setInputValue("Summarize the key points of this topic in a table."); }}
-              className="whitespace-nowrap px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-full text-xs font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 transition-all shadow-sm"
-            >
-              📋 Key Summary
-            </button>
-          </div>
-        </div>
-
-        {/* Input Area */}
         <div className="p-4 md:p-6 bg-zinc-950 border-t border-zinc-900">
           <div className="max-w-4xl mx-auto">
             {pendingImage && (
               <div className="relative inline-block mb-3 group animate-in fade-in zoom-in duration-200">
                 <img src={pendingImage} alt="preview" className="h-24 w-24 object-cover rounded-xl border-2 border-zinc-700 shadow-lg" />
-                <button 
-                  onClick={() => setPendingImage(null)}
-                  className="absolute -top-2 -right-2 bg-zinc-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-lg hover:bg-red-600 transition-colors"
-                >
+                <button onClick={() => setPendingImage(null)} className="absolute -top-2 -right-2 bg-zinc-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-lg hover:bg-red-600 transition-colors">
                   <i className="fas fa-times"></i>
                 </button>
               </div>
@@ -280,32 +294,39 @@ const App: React.FC = () => {
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Ask anything or upload notes..."
-                disabled={isTyping}
-                className="w-full pl-14 pr-28 py-4 bg-zinc-900 border border-zinc-800 rounded-2xl focus:outline-none focus:ring-1 focus:ring-zinc-600 focus:bg-zinc-900 transition-all text-sm md:text-base text-zinc-100 placeholder-zinc-600 shadow-lg"
+                placeholder="Ask anything or generate a visual..."
+                disabled={isTyping || isGeneratingImage}
+                className="w-full pl-14 pr-32 py-4 bg-zinc-900 border border-zinc-800 rounded-2xl focus:outline-none focus:ring-1 focus:ring-zinc-600 focus:bg-zinc-900 transition-all text-sm md:text-base text-zinc-100 placeholder-zinc-600 shadow-lg"
               />
               
               <button 
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isTyping}
+                disabled={isTyping || isGeneratingImage}
                 className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors"
                 title="Upload Photo or Document"
               >
                 <i className="fas fa-paperclip text-lg"></i>
               </button>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileUpload} 
-                className="hidden" 
-                accept="image/*,.pdf,.txt,.docx"
-              />
+              <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,.pdf,.txt,.docx" />
 
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                <button 
+                  type="button"
+                  onClick={handleGenerateVisual}
+                  disabled={isTyping || isGeneratingImage || !inputValue.trim()}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                    !inputValue.trim()
+                    ? 'bg-zinc-800 text-zinc-600 opacity-50'
+                    : 'bg-zinc-800 text-zinc-100 border border-zinc-700 hover:bg-zinc-700 active:scale-95'
+                  }`}
+                  title="Generate Visual Architect Render"
+                >
+                  <i className="fas fa-sparkles"></i>
+                </button>
                 <button 
                   type="submit"
-                  disabled={isTyping || (!inputValue.trim() && !pendingImage)}
+                  disabled={isTyping || isGeneratingImage || (!inputValue.trim() && !pendingImage)}
                   className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
                     !inputValue.trim() && !pendingImage
                     ? 'bg-zinc-800 text-zinc-600 opacity-50'

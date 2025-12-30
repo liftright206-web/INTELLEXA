@@ -1,26 +1,32 @@
 
 import React, { useState } from 'react';
-import { ChatSession } from '../types';
+import { ChatSession, User } from '../types';
 import { IntellexaIcon, IntellexaWordmark } from './Branding';
 
 interface LayoutProps {
   children: React.ReactNode;
   sessions: ChatSession[];
   activeSessionId: string;
+  user: User | null;
   onSessionSelect: (id: string) => void;
   onNewChat: () => void;
   onDeleteSession: (id: string) => void;
   onReset: () => void;
+  onGoHome: () => void;
+  onLogout: () => void;
 }
 
 const Layout: React.FC<LayoutProps> = ({ 
   children, 
   sessions,
   activeSessionId,
+  user,
   onSessionSelect,
   onNewChat,
   onDeleteSession,
-  onReset
+  onReset,
+  onGoHome,
+  onLogout
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -38,7 +44,14 @@ const Layout: React.FC<LayoutProps> = ({
         </button>
       </div>
 
-      <div className="p-4">
+      <div className="p-4 space-y-2">
+        <button 
+          onClick={onGoHome}
+          className="w-full py-2.5 px-4 bg-transparent hover:bg-zinc-800 text-zinc-300 rounded-xl text-sm font-bold flex items-center justify-start gap-3 transition-all"
+        >
+          <i className="fas fa-home w-4"></i>
+          Home Page
+        </button>
         <button 
           onClick={() => {
             onNewChat();
@@ -52,7 +65,7 @@ const Layout: React.FC<LayoutProps> = ({
       </div>
 
       <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
-        <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest px-2 mb-3 mt-2">Chat History</p>
+        <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest px-2 mb-3 mt-4">History</p>
         {sessions.length === 0 ? (
           <div className="px-3 py-4 text-center">
             <p className="text-xs text-zinc-600 italic">No history yet</p>
@@ -90,6 +103,13 @@ const Layout: React.FC<LayoutProps> = ({
       </nav>
 
       <div className="p-4 border-t border-zinc-800 space-y-2">
+        <button 
+          onClick={onLogout}
+          className="w-full py-2 flex items-center justify-start gap-3 px-4 text-sm font-medium text-zinc-500 hover:text-red-400 transition-colors"
+        >
+          <i className="fas fa-sign-out-alt w-4"></i>
+          Logout
+        </button>
         <button 
           onClick={() => {
             onReset();
@@ -153,11 +173,11 @@ const Layout: React.FC<LayoutProps> = ({
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3 pl-4 border-l border-zinc-800">
                <div className="hidden sm:flex flex-col items-end">
-                  <span className="text-xs font-semibold text-zinc-200">Student Profile</span>
+                  <span className="text-xs font-semibold text-zinc-200">{user?.name || 'Student'}</span>
                   <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Cloud Sync</span>
                </div>
-               <div className="w-9 h-9 rounded-full bg-zinc-800 border-2 border-zinc-700 shadow-sm overflow-hidden hover:border-zinc-400 transition-all cursor-pointer">
-                  <img src="https://picsum.photos/100/100?random=42" alt="Avatar" className="w-full h-full object-cover" />
+               <div className="w-9 h-9 rounded-full bg-zinc-800 border-2 border-zinc-700 shadow-sm overflow-hidden hover:border-zinc-400 transition-all cursor-pointer" onClick={onGoHome}>
+                  <img src={user?.avatar || "https://picsum.photos/100/100?random=42"} alt="Avatar" className="w-full h-full object-cover" />
                </div>
             </div>
           </div>
