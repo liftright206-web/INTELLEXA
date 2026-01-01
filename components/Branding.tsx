@@ -10,9 +10,9 @@ export const IntellexaIcon: React.FC<{ className?: string }> = ({ className = "w
   >
     <defs>
       <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#3f3f46" />
-        <stop offset="50%" stopColor="#a1a1aa" />
-        <stop offset="100%" stopColor="#f4f4f5" />
+        <stop offset="0%" stopColor="#7c3aed" />
+        <stop offset="50%" stopColor="#a855f7" />
+        <stop offset="100%" stopColor="#e879f9" />
       </linearGradient>
     </defs>
     {/* Stylized Node-X Logo */}
@@ -34,8 +34,8 @@ export const IntellexaIcon: React.FC<{ className?: string }> = ({ className = "w
 
 export const IntellexaWordmark: React.FC<{ className?: string }> = ({ className = "h-8" }) => (
   <div className={`flex items-center gap-0.5 ${className}`}>
-    <span className="text-2xl font-semibold tracking-tight text-zinc-100">intelle</span>
+    <span className="text-2xl font-bold tracking-tight text-white">intelle</span>
     <IntellexaIcon className="w-6 h-6 mt-1" />
-    <span className="text-2xl font-semibold tracking-tight text-zinc-100">a</span>
+    <span className="text-2xl font-bold tracking-tight text-white">a</span>
   </div>
 );

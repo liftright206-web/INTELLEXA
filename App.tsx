@@ -83,24 +83,18 @@ const App: React.FC = () => {
     setView('chat');
   };
 
-  const handleSendMessage = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const sendMessage = async (text: string, image?: string) => {
     if (!activeSessionId) return;
-    if (!inputValue.trim() && !pendingImage) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: inputValue,
+      content: text,
       timestamp: new Date(),
-      attachments: pendingImage ? [pendingImage] : []
+      attachments: image ? [image] : []
     };
 
     setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, userMessage] } : s));
-
-    setInputValue('');
-    const currentPendingImage = pendingImage;
-    setPendingImage(null);
     setIsTyping(true);
 
     const assistantMsgId = (Date.now() + 1).toString();
@@ -120,7 +114,7 @@ const App: React.FC = () => {
       const stream = getStreamingTutorResponse(
         userMessage.content,
         messages.slice(-10),
-        currentPendingImage || undefined
+        image || undefined
       );
 
       for await (const chunk of stream) {
@@ -143,6 +137,41 @@ const App: React.FC = () => {
     } finally {
       setIsTyping(false);
     }
+  };
+
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!inputValue.trim() && !pendingImage) return;
+
+    const currentText = inputValue;
+    const currentImage = pendingImage;
+    
+    setInputValue('');
+    setPendingImage(null);
+    
+    await sendMessage(currentText, currentImage || undefined);
+  };
+
+  const handleAction = async (actionType: 'mock-test' | 'flowchart' | 'summary' | 'problem-solver') => {
+    if (isTyping || isGeneratingImage) return;
+
+    let actionPrompt = "";
+    switch(actionType) {
+      case 'mock-test':
+        actionPrompt = "Can you create a short Mock Test for me based on what we've been discussing? Include 3 multiple-choice questions and 1 short-answer question.";
+        break;
+      case 'flowchart':
+        actionPrompt = "Create a detailed Mermaid flowchart architecting the main concepts of our current discussion.";
+        break;
+      case 'summary':
+        actionPrompt = "Please provide a concise architectural summary of the key takeaways from our session.";
+        break;
+      case 'problem-solver':
+        actionPrompt = "Let's tackle a specific practice problem related to this topic. Can you walk me through one step-by-step?";
+        break;
+    }
+    
+    await sendMessage(actionPrompt);
   };
 
   const handleGenerateVisual = async () => {
@@ -245,6 +274,13 @@ const App: React.FC = () => {
   if (view === 'landing') return <LandingPage onStart={handleStartClicked} />;
   if (view === 'auth') return <Auth onLogin={handleLogin} onBack={() => setView('landing')} />;
 
+  const QUICK_ACTIONS = [
+    { id: 'mock-test', label: 'Mock Test', icon: 'fa-vial' },
+    { id: 'flowchart', label: 'Flow Chart', icon: 'fa-diagram-project' },
+    { id: 'summary', label: 'Summary', icon: 'fa-file-lines' },
+    { id: 'problem-solver', label: 'Problem Solver', icon: 'fa-brain' }
+  ];
+
   return (
     <Layout 
       sessions={sessions}
@@ -257,19 +293,19 @@ const App: React.FC = () => {
       onGoHome={() => setView('landing')}
       onLogout={handleLogout}
     >
-      <div className="flex flex-col h-full bg-black">
+      <div className="flex flex-col h-full bg-[#05010d]">
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 custom-scrollbar">
           <div className="max-w-4xl mx-auto">
             {messages.map((msg) => <ChatBubble key={msg.id} message={msg} />)}
             {(isTyping || isGeneratingImage) && (
               <div className="flex justify-start mb-6">
-                <div className="bg-zinc-900 border border-zinc-800 px-4 py-3 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-3">
+                <div className="bg-zinc-900 border border-purple-900/30 px-4 py-3 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-3">
                   <div className="flex gap-1">
-                    <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce"></div>
-                    <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                    <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce"></div>
+                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce [animation-delay:0.4s]"></div>
                   </div>
-                  <span className="text-xs text-zinc-500 font-medium tracking-tight">
+                  <span className="text-xs text-purple-400 font-medium tracking-tight">
                     {isGeneratingImage ? "Architecting visual aid..." : "Intellexa is analyzing..."}
                   </span>
                 </div>
@@ -278,12 +314,27 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-4 md:p-6 bg-zinc-950 border-t border-zinc-900">
+        <div className="p-4 md:p-6 bg-[#0a0118]/80 backdrop-blur-md border-t border-purple-900/20">
           <div className="max-w-4xl mx-auto">
+            {/* Quick Actions Bar */}
+            <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-1">
+              {QUICK_ACTIONS.map((action) => (
+                <button
+                  key={action.id}
+                  onClick={() => handleAction(action.id as any)}
+                  disabled={isTyping || isGeneratingImage}
+                  className="flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-950/30 border border-purple-800/30 text-purple-300 text-xs font-bold uppercase tracking-wider hover:bg-purple-900/40 hover:border-purple-500/50 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <i className={`fas ${action.icon}`}></i>
+                  {action.label}
+                </button>
+              ))}
+            </div>
+
             {pendingImage && (
               <div className="relative inline-block mb-3 group animate-in fade-in zoom-in duration-200">
-                <img src={pendingImage} alt="preview" className="h-24 w-24 object-cover rounded-xl border-2 border-zinc-700 shadow-lg" />
-                <button onClick={() => setPendingImage(null)} className="absolute -top-2 -right-2 bg-zinc-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-lg hover:bg-red-600 transition-colors">
+                <img src={pendingImage} alt="preview" className="h-24 w-24 object-cover rounded-xl border-2 border-purple-600/50 shadow-lg" />
+                <button onClick={() => setPendingImage(null)} className="absolute -top-2 -right-2 bg-purple-900 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-lg hover:bg-red-600 transition-colors">
                   <i className="fas fa-times"></i>
                 </button>
               </div>
@@ -296,14 +347,14 @@ const App: React.FC = () => {
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Ask anything or generate a visual..."
                 disabled={isTyping || isGeneratingImage}
-                className="w-full pl-14 pr-32 py-4 bg-zinc-900 border border-zinc-800 rounded-2xl focus:outline-none focus:ring-1 focus:ring-zinc-600 focus:bg-zinc-900 transition-all text-sm md:text-base text-zinc-100 placeholder-zinc-600 shadow-lg"
+                className="w-full pl-14 pr-32 py-4 bg-zinc-950/50 border border-purple-900/30 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-600/50 focus:border-purple-500/50 transition-all text-sm md:text-base text-zinc-100 placeholder-zinc-700 shadow-xl backdrop-blur-sm"
               />
               
               <button 
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isTyping || isGeneratingImage}
-                className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors"
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-purple-500 hover:text-purple-300 hover:bg-purple-900/30 rounded-lg transition-colors"
                 title="Upload Photo or Document"
               >
                 <i className="fas fa-paperclip text-lg"></i>
@@ -317,8 +368,8 @@ const App: React.FC = () => {
                   disabled={isTyping || isGeneratingImage || !inputValue.trim()}
                   className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
                     !inputValue.trim()
-                    ? 'bg-zinc-800 text-zinc-600 opacity-50'
-                    : 'bg-zinc-800 text-zinc-100 border border-zinc-700 hover:bg-zinc-700 active:scale-95'
+                    ? 'bg-purple-950/20 text-purple-800 opacity-50'
+                    : 'bg-purple-900/40 text-purple-100 border border-purple-700/50 hover:bg-purple-800/40 active:scale-95'
                   }`}
                   title="Generate Visual Architect Render"
                 >
@@ -329,8 +380,8 @@ const App: React.FC = () => {
                   disabled={isTyping || isGeneratingImage || (!inputValue.trim() && !pendingImage)}
                   className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
                     !inputValue.trim() && !pendingImage
-                    ? 'bg-zinc-800 text-zinc-600 opacity-50'
-                    : 'bg-zinc-100 text-black shadow-lg hover:bg-white active:scale-95'
+                    ? 'bg-purple-950/20 text-purple-800 opacity-50'
+                    : 'bg-gradient-to-br from-purple-600 to-violet-700 text-white shadow-lg hover:from-purple-500 hover:to-violet-600 active:scale-95'
                   }`}
                 >
                   <i className="fas fa-paper-plane"></i>

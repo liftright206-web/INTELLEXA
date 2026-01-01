@@ -12,8 +12,12 @@
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #000000; /* Pure Black */
-        color: #f8fafc; /* neutral-50 */
+        background-color: #05010d; /* Ultra Dark Purple-Black */
+        color: #f8fafc;
+      }
+      ::selection {
+        background-color: #7c3aed;
+        color: white;
       }
       .custom-scrollbar::-webkit-scrollbar {
         width: 6px;
@@ -22,11 +26,11 @@
         background: transparent;
       }
       .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #27272a; /* zinc-800 */
+        background: #4c1d95; /* violet-900 */
         border-radius: 10px;
       }
       .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: #3f3f46; /* zinc-700 */
+        background: #6d28d9; /* violet-700 */
       }
       .no-scrollbar::-webkit-scrollbar {
         display: none;
@@ -40,6 +44,9 @@
         max-width: 100% !important;
         height: auto !important;
         background: transparent !important;
+      }
+      .purple-glow {
+        box-shadow: 0 0 20px rgba(124, 58, 237, 0.15);
       }
     </style>
 <script type="importmap">
@@ -55,7 +62,6 @@
 </head>
 <body>
     <div id="root"></div>
-    <!-- The following script tag ensures standard deployment environments find the entry point -->
     <script type="module" src="index.tsx"></script>
 </body>
 </html>

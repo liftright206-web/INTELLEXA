@@ -22,12 +22,12 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart }) => {
         securityLevel: 'loose',
         flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
         themeVariables: {
-          primaryColor: '#27272a',
-          primaryTextColor: '#f4f4f5',
-          primaryBorderColor: '#52525b',
-          lineColor: '#71717a',
-          secondaryColor: '#18181b',
-          tertiaryColor: '#09090b'
+          primaryColor: '#4c1d95',
+          primaryTextColor: '#f3e8ff',
+          primaryBorderColor: '#7c3aed',
+          lineColor: '#a855f7',
+          secondaryColor: '#1e1b4b',
+          tertiaryColor: '#05010d'
         }
       });
       
@@ -41,7 +41,7 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart }) => {
         } catch (err) {
           console.error('Mermaid rendering failed:', err);
           if (ref.current) {
-            ref.current.innerHTML = '<p class="text-zinc-500 text-xs">Failed to render diagram. Check Mermaid syntax.</p>';
+            ref.current.innerHTML = '<p class="text-purple-500 text-xs">Failed to render diagram. Check Mermaid syntax.</p>';
           }
         }
       };
@@ -51,9 +51,9 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart }) => {
   }, [chart]);
 
   return (
-    <div className="w-full bg-zinc-950/50 p-4 rounded-xl border border-zinc-800/50 my-3 overflow-hidden">
+    <div className="w-full bg-[#0a0118]/50 p-4 rounded-xl border border-purple-900/30 my-3 overflow-hidden shadow-inner shadow-purple-950">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1">
+        <span className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex items-center gap-1">
           <i className="fas fa-project-diagram"></i>
           Visualized Concept
         </span>
@@ -70,7 +70,7 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart }) => {
                 link.click();
               }
            }}
-           className="text-[10px] bg-zinc-900 hover:bg-zinc-800 text-zinc-400 px-2 py-1 rounded transition-colors"
+           className="text-[10px] bg-purple-950 hover:bg-purple-900 text-purple-300 px-2 py-1 rounded border border-purple-800/30 transition-colors"
         >
           <i className="fas fa-download mr-1"></i> Save
         </button>

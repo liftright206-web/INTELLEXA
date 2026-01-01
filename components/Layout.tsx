@@ -34,12 +34,12 @@ const Layout: React.FC<LayoutProps> = ({
 
   const SidebarContent = () => (
     <>
-      <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
+      <div className="p-6 border-b border-purple-900/20 flex items-center justify-between">
         <div className="flex flex-col">
           <IntellexaWordmark />
-          <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-[0.3em] mt-1 ml-1">Your Study Buddy</p>
+          <p className="text-[10px] text-purple-400 font-bold uppercase tracking-[0.3em] mt-1 ml-1">Your Study Buddy</p>
         </div>
-        <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-zinc-500 hover:text-white p-2 transition-colors">
+        <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-purple-400 hover:text-white p-2 transition-colors">
           <i className="fas fa-times text-xl"></i>
         </button>
       </div>
@@ -47,7 +47,7 @@ const Layout: React.FC<LayoutProps> = ({
       <div className="p-4 space-y-2">
         <button 
           onClick={onGoHome}
-          className="w-full py-2.5 px-4 bg-transparent hover:bg-zinc-800 text-zinc-300 rounded-xl text-sm font-bold flex items-center justify-start gap-3 transition-all"
+          className="w-full py-2.5 px-4 bg-transparent hover:bg-purple-900/20 text-purple-300 rounded-xl text-sm font-bold flex items-center justify-start gap-3 transition-all"
         >
           <i className="fas fa-home w-4"></i>
           Home Page
@@ -57,7 +57,7 @@ const Layout: React.FC<LayoutProps> = ({
             onNewChat();
             setIsSidebarOpen(false);
           }}
-          className="w-full py-2.5 px-4 bg-zinc-100 hover:bg-white text-black rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+          className="w-full py-2.5 px-4 bg-gradient-to-r from-purple-600 to-violet-700 hover:from-purple-500 hover:to-violet-600 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-950/20 active:scale-95"
         >
           <i className="fas fa-plus"></i>
           New Study Session
@@ -65,10 +65,10 @@ const Layout: React.FC<LayoutProps> = ({
       </div>
 
       <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
-        <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest px-2 mb-3 mt-4">History</p>
+        <p className="text-[10px] font-bold text-purple-800 uppercase tracking-widest px-2 mb-3 mt-4">History</p>
         {sessions.length === 0 ? (
           <div className="px-3 py-4 text-center">
-            <p className="text-xs text-zinc-600 italic">No history yet</p>
+            <p className="text-xs text-purple-900 italic">No history yet</p>
           </div>
         ) : (
           sessions.map((session) => (
@@ -76,8 +76,8 @@ const Layout: React.FC<LayoutProps> = ({
               key={session.id}
               className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-all cursor-pointer ${
                 activeSessionId === session.id 
-                ? 'bg-zinc-800 text-white border border-zinc-700' 
-                : 'text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-200 border border-transparent'
+                ? 'bg-purple-900/40 text-purple-100 border border-purple-800/50 shadow-inner shadow-purple-950' 
+                : 'text-zinc-500 hover:bg-purple-950/30 hover:text-purple-200 border border-transparent'
               }`}
               onClick={() => {
                 onSessionSelect(session.id);
@@ -93,7 +93,7 @@ const Layout: React.FC<LayoutProps> = ({
                   e.stopPropagation();
                   onDeleteSession(session.id);
                 }}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all"
+                className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-all"
               >
                 <i className="fas fa-trash text-[10px]"></i>
               </button>
@@ -102,7 +102,7 @@ const Layout: React.FC<LayoutProps> = ({
         )}
       </nav>
 
-      <div className="p-4 border-t border-zinc-800 space-y-2">
+      <div className="p-4 border-t border-purple-900/20 space-y-2">
         <button 
           onClick={onLogout}
           className="w-full py-2 flex items-center justify-start gap-3 px-4 text-sm font-medium text-zinc-500 hover:text-red-400 transition-colors"
@@ -136,7 +136,7 @@ const Layout: React.FC<LayoutProps> = ({
 
       {/* Sidebar - Desktop & Mobile */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-72 flex flex-col border-r border-zinc-800 bg-zinc-900 shadow-2xl transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-50 w-72 flex flex-col border-r border-purple-900/20 bg-[#080112] shadow-2xl transition-transform duration-300 ease-in-out
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         md:relative md:translate-x-0 md:flex
       `}>
@@ -145,12 +145,12 @@ const Layout: React.FC<LayoutProps> = ({
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 relative bg-black">
-        <header className="h-16 border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md flex items-center justify-between px-4 md:px-6 shadow-sm z-10">
+        <header className="h-16 border-b border-purple-900/20 bg-[#0a0118]/80 backdrop-blur-md flex items-center justify-between px-4 md:px-6 shadow-sm z-10">
           <div className="flex items-center gap-3">
             {/* Mobile Menu Button */}
             <button 
               onClick={toggleSidebar}
-              className="md:hidden p-2 text-zinc-400 hover:text-white transition-colors"
+              className="md:hidden p-2 text-purple-400 hover:text-white transition-colors"
               aria-label="Toggle Menu"
             >
               <i className="fas fa-bars text-xl"></i>
@@ -163,20 +163,20 @@ const Layout: React.FC<LayoutProps> = ({
             </div>
             
             <div className="hidden md:flex flex-col">
-               <span className="text-sm font-bold text-zinc-100">
+               <span className="text-sm font-bold text-purple-100">
                  {sessions.find(s => s.id === activeSessionId)?.title || "Study Workspace"}
                </span>
-               <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Active Study Session</span>
+               <span className="text-[10px] text-purple-600 font-bold uppercase tracking-widest">Active Study Session</span>
             </div>
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 pl-4 border-l border-zinc-800">
+            <div className="flex items-center gap-3 pl-4 border-l border-purple-900/20">
                <div className="hidden sm:flex flex-col items-end">
-                  <span className="text-xs font-semibold text-zinc-200">{user?.name || 'Student'}</span>
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Cloud Sync</span>
+                  <span className="text-xs font-semibold text-purple-200">{user?.name || 'Student'}</span>
+                  <span className="text-[10px] text-purple-700 font-bold uppercase tracking-wider">Cloud Sync</span>
                </div>
-               <div className="w-9 h-9 rounded-full bg-zinc-800 border-2 border-zinc-700 shadow-sm overflow-hidden hover:border-zinc-400 transition-all cursor-pointer" onClick={onGoHome}>
+               <div className="w-9 h-9 rounded-full bg-zinc-800 border-2 border-purple-600/50 shadow-sm overflow-hidden hover:border-purple-400 transition-all cursor-pointer" onClick={onGoHome}>
                   <img src={user?.avatar || "https://picsum.photos/100/100?random=42"} alt="Avatar" className="w-full h-full object-cover" />
                </div>
             </div>
