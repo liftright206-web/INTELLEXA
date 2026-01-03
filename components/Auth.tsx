@@ -6,9 +6,11 @@ import { User } from '../types';
 interface AuthProps {
   onLogin: (user: User) => void;
   onBack: () => void;
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
 }
 
-const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
+const Auth: React.FC<AuthProps> = ({ onLogin, onBack, theme, onToggleTheme }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
@@ -26,84 +28,82 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#05010d] flex flex-col items-center justify-center px-6 relative overflow-hidden">
+    <div className={`min-h-screen flex flex-col items-center justify-center px-6 relative overflow-hidden text-inherit`}>
       {/* Background Decor */}
-      <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none" 
+      <div className={`absolute top-0 left-0 w-full h-full ${theme === 'dark' ? 'opacity-10' : 'opacity-[0.05]'} pointer-events-none`} 
            style={{ backgroundImage: 'radial-gradient(#7c3aed 0.5px, transparent 0.5px)', backgroundSize: '40px 40px' }}>
       </div>
 
       <div className="w-full max-w-md z-10 animate-in fade-in zoom-in duration-500">
-        <div className="flex justify-center mb-10">
+        <div className="flex justify-between items-center mb-10">
+          <button onClick={onBack} className="text-purple-500 hover:text-purple-700 transition-colors">
+            <i className="fas fa-arrow-left text-xl"></i>
+          </button>
           <IntellexaWordmark className="h-10" />
+          <div className="w-10"></div> {/* Placeholder to keep alignment */}
         </div>
 
-        <div className="bg-zinc-950 border border-purple-900/30 rounded-3xl p-8 shadow-[0_0_50px_rgba(88,28,135,0.2)] backdrop-blur-sm">
-          <h2 className="text-2xl font-bold text-white mb-2">
+        <div className={`glass-card rounded-[32px] p-10 shadow-2xl`}>
+          <h2 className={`text-3xl font-black mb-2 ${theme === 'dark' ? 'text-white' : 'text-zinc-900'}`}>
             {isLogin ? 'Welcome back' : 'Create an account'}
           </h2>
-          <p className="text-zinc-500 text-sm mb-8">
+          <p className={`${theme === 'dark' ? 'text-zinc-500' : 'text-zinc-500'} text-sm mb-10 font-medium`}>
             {isLogin ? 'Access your architectural workspace.' : 'Start your journey with Intellexa.'}
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
               <div>
-                <label className="block text-xs font-bold text-purple-400 uppercase tracking-widest mb-2 ml-1">Full Name</label>
+                <label className="block text-[10px] font-black text-purple-500 uppercase tracking-[0.2em] mb-3 ml-1">Full Name</label>
                 <input 
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                   placeholder="Leonardo Da Vinci"
-                  className="w-full px-4 py-3.5 bg-zinc-900 border border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-purple-600 text-zinc-200 placeholder-zinc-700 transition-all"
+                  className={`w-full px-6 py-4 ${theme === 'dark' ? 'bg-white/5 border-white/5 text-white' : 'bg-purple-50/50 border-purple-100 text-zinc-900'} border rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium`}
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-bold text-purple-400 uppercase tracking-widest mb-2 ml-1">Email Address</label>
+              <label className="block text-[10px] font-black text-purple-500 uppercase tracking-[0.2em] mb-3 ml-1">Email Address</label>
               <input 
                 type="email"
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
                 placeholder="leo@architect.edu"
-                className="w-full px-4 py-3.5 bg-zinc-900 border border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-purple-600 text-zinc-200 placeholder-zinc-700 transition-all"
+                className={`w-full px-6 py-4 ${theme === 'dark' ? 'bg-white/5 border-white/5 text-white' : 'bg-purple-50/50 border-purple-100 text-zinc-900'} border rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium`}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-purple-400 uppercase tracking-widest mb-2 ml-1">Password</label>
+              <label className="block text-[10px] font-black text-purple-500 uppercase tracking-[0.2em] mb-3 ml-1">Password</label>
               <input 
                 type="password"
                 required
                 value={formData.password}
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
                 placeholder="••••••••"
-                className="w-full px-4 py-3.5 bg-zinc-900 border border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-purple-600 text-zinc-200 placeholder-zinc-700 transition-all"
+                className={`w-full px-6 py-4 ${theme === 'dark' ? 'bg-white/5 border-white/5 text-white' : 'bg-purple-50/50 border-purple-100 text-zinc-900'} border rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium`}
               />
             </div>
 
             <button 
               type="submit"
-              className="w-full py-4 bg-gradient-to-r from-purple-600 to-violet-700 text-white font-bold rounded-xl hover:from-purple-500 hover:to-violet-600 transition-all transform active:scale-[0.98] mt-4 shadow-lg shadow-purple-900/20"
+              className="w-full py-5 bg-gradient-to-r from-purple-600 to-indigo-800 text-white font-black rounded-2xl hover:scale-105 transition-all shadow-xl active:scale-95 text-sm uppercase tracking-widest mt-4"
             >
-              {isLogin ? 'Sign In' : 'Sign Up'}
+              {isLogin ? 'SIGN IN NOW' : 'CREATE ACCOUNT'}
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-zinc-900 flex flex-col items-center gap-4">
+          <div className="mt-10 pt-8 border-t border-purple-500/10 flex flex-col items-center gap-4">
             <button 
               onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-purple-400 hover:text-purple-300 transition-colors"
+              className="text-sm font-bold text-purple-500 hover:text-purple-600 transition-colors"
             >
-              {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
-            </button>
-            <button 
-              onClick={onBack}
-              className="text-xs text-zinc-600 hover:text-zinc-400 font-bold uppercase tracking-widest transition-colors"
-            >
-              Back to Landing
+              {isLogin ? "New here? Create Workspace" : "Already registered? Sign in"}
             </button>
           </div>
         </div>

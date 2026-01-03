@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import { Message } from "../types";
+import { Message, ImageGenerationConfig } from "../types";
 
 const SYSTEM_INSTRUCTION = `You are Intellexa, an expert AI architect and education specialist.
 Your task is to function as a universal virtual tutor, study partner, and project assistant.
@@ -13,7 +13,7 @@ Core Objectives:
 5. **VISUAL ARCHITECTURE**: 
    - Use Mermaid.js for flowcharts/logic (code block labeled 'mermaid').
    - You can also trigger high-fidelity image generation for realistic visual aids (e.g., 3D biological models, historical scenes). 
-   - When appropriate, tell the user: "I can generate a high-fidelity visual for this if you click the Visual Architect button."
+   - When appropriate, tell the user: "I can generate a high-fidelity visual for this. Simply use the 'VISUAL RENDER' quick action or ask me to architect it!"
 
 Teaching Style:
 - Friendly, patient, and motivating.
@@ -72,23 +72,25 @@ export async function* getStreamingTutorResponse(
   }
 }
 
-export async function generateTutorImage(prompt: string): Promise<string | null> {
+export async function generateTutorImage(config: ImageGenerationConfig): Promise<string | null> {
   const apiKey = process.env.API_KEY;
   if (!apiKey) throw new Error("API Key is missing");
 
+  // Re-initialize to ensure we use the current API_KEY (especially for pro model)
   const ai = new GoogleGenAI({ apiKey });
-  // Using nano banana for image generation
-  const model = 'gemini-2.5-flash-image';
+  
+  const model = config.quality === 'pro' ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
 
   try {
     const response = await ai.models.generateContent({
       model: model,
       contents: [{
-        parts: [{ text: `Generate a high-quality, professional educational illustration or 3D render of: ${prompt}. It should be clear, detailed, and suitable for a textbook or academic presentation. Dark aesthetic preferred.` }]
+        parts: [{ text: `Generate a high-quality, professional educational illustration or 3D render of: ${config.prompt}. It should be clear, detailed, and suitable for a academic presentation. Ensure accuracy for educational purposes.` }]
       }],
       config: {
         imageConfig: {
-          aspectRatio: "1:1"
+          aspectRatio: config.aspectRatio,
+          ...(config.quality === 'pro' ? { imageSize: '1K' } : {})
         }
       }
     });
@@ -99,8 +101,11 @@ export async function generateTutorImage(prompt: string): Promise<string | null>
       }
     }
     return null;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Image generation failed:", error);
+    if (error?.message?.includes("Requested entity was not found")) {
+      throw new Error("PRO_KEY_MISSING");
+    }
     return null;
   }
 }

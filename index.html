@@ -9,29 +9,66 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+      
+      :root {
+        --bg-color: #030008;
+        --text-color: #f8fafc;
+        --accent-purple: 124, 58, 237;
+        --card-bg: rgba(15, 10, 25, 0.4);
+        --border-color: rgba(124, 58, 237, 0.1);
+        --sidebar-bg: #080212;
+      }
+
+      .light-mode {
+        --bg-color: #faf8f6; /* Warm Parchment - Eye comfortable */
+        --text-color: #3c3750; /* Soft Deep Violet-Gray - Low contrast strain */
+        --accent-purple: 109, 40, 217;
+        --card-bg: rgba(255, 254, 252, 0.85); /* Silk Tone */
+        --border-color: rgba(124, 58, 237, 0.12);
+        --sidebar-bg: #f4f1ee; /* Muted bone-gray */
+      }
+
       body {
-        font-family: 'Inter', sans-serif;
-        background-color: #05010d; /* Ultra Dark Purple-Black */
-        color: #f8fafc;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        overflow-x: hidden;
+        transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
       }
+
       ::selection {
-        background-color: #7c3aed;
-        color: white;
+        background-color: rgba(var(--accent-purple), 0.2);
+        color: inherit;
       }
+
+      /* Luxury Scrollbar */
       .custom-scrollbar::-webkit-scrollbar {
-        width: 6px;
+        width: 4px;
       }
       .custom-scrollbar::-webkit-scrollbar-track {
         background: transparent;
       }
       .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #4c1d95; /* violet-900 */
-        border-radius: 10px;
+        background: rgba(124, 58, 237, 0.15);
+        border-radius: 20px;
       }
       .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: #6d28d9; /* violet-700 */
+        background: rgba(124, 58, 237, 0.4);
       }
+
+      /* Glow Effects */
+      .purple-glow-soft {
+        box-shadow: 0 0 30px rgba(124, 58, 237, 0.08);
+      }
+      
+      .glass-card {
+        background: var(--card-bg);
+        backdrop-filter: blur(14px);
+        border: 1px solid var(--border-color);
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+      }
+
       .no-scrollbar::-webkit-scrollbar {
         display: none;
       }
@@ -39,14 +76,17 @@
         -ms-overflow-style: none;
         scrollbar-width: none;
       }
-      /* Mermaid custom styling */
+
+      /* Mermaid styling overrides */
       .mermaid svg {
-        max-width: 100% !important;
-        height: auto !important;
-        background: transparent !important;
+        filter: drop-shadow(0 0 8px rgba(var(--accent-purple), 0.15));
       }
-      .purple-glow {
-        box-shadow: 0 0 20px rgba(124, 58, 237, 0.15);
+
+      .theme-transition * {
+        transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), 
+                    border-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), 
+                    color 0.5s cubic-bezier(0.4, 0, 0.2, 1), 
+                    box-shadow 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
       }
     </style>
 <script type="importmap">
@@ -60,7 +100,7 @@
 }
 </script>
 </head>
-<body>
+<body class="theme-transition">
     <div id="root"></div>
     <script type="module" src="index.tsx"></script>
 </body>

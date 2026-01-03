@@ -6,9 +6,10 @@ import { IntellexaIcon } from './Branding';
 
 interface ChatBubbleProps {
   message: Message;
+  theme: 'dark' | 'light';
 }
 
-const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
+const ChatBubble: React.FC<ChatBubbleProps> = ({ message, theme }) => {
   const isUser = message.role === 'user';
 
   const renderContent = (content: string) => {
@@ -24,62 +25,75 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
   const isArchitected = !isUser && message.content.includes("architected a visual aid");
 
   return (
-    <div className={`flex w-full mb-6 ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`flex max-w-[85%] md:max-w-[80%] ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start gap-3`}>
-        {/* Avatar */}
-        <div className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center shadow-lg mt-1 overflow-hidden transition-transform hover:scale-105 ${
-          isUser ? 'bg-purple-950/50 text-purple-100 border border-purple-600/30' : 'bg-zinc-900 border border-zinc-800 shadow-zinc-900/10'
-        }`}>
-          {isUser ? (
-            <i className="fas fa-user text-xs"></i>
-          ) : (
-            <div className="p-1">
-              <IntellexaIcon className="w-full h-full" />
-            </div>
-          )}
+    <div className={`flex w-full mb-10 ${isUser ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-4 duration-500`}>
+      <div className={`flex max-w-[90%] md:max-w-[75%] ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start gap-5`}>
+        {/* Avatar Area */}
+        <div className="flex-shrink-0 flex flex-col items-center">
+          <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg relative group ${
+            isUser 
+            ? theme === 'dark' ? 'bg-gradient-to-br from-zinc-800 to-zinc-900 border border-zinc-700' : 'bg-white border border-purple-200 shadow-purple-100/30'
+            : theme === 'dark' ? 'bg-zinc-950 border border-purple-500/30 shadow-purple-500/20' : 'bg-purple-600 border border-purple-500 shadow-purple-200'
+          }`}>
+            {!isUser && (
+              <div className="absolute inset-0 rounded-2xl bg-purple-500/20 blur-md group-hover:opacity-100 opacity-0 transition-opacity"></div>
+            )}
+            {isUser ? (
+              <i className={`fas fa-user ${theme === 'dark' ? 'text-zinc-400' : 'text-purple-600'} text-sm`}></i>
+            ) : (
+              <div className="p-1.5 relative z-10">
+                <IntellexaIcon className="w-full h-full" />
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Bubble */}
+        {/* Bubble Area */}
         <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
-          <div className={`px-4 py-3 rounded-2xl shadow-md text-[15px] leading-relaxed transition-all ${
+          <div className={`relative px-6 py-5 rounded-[28px] text-[15px] md:text-base leading-relaxed font-medium transition-all ${
             isUser 
-            ? 'bg-gradient-to-br from-purple-600 to-violet-700 text-white rounded-tr-none shadow-purple-950/40' 
-            : 'bg-zinc-950/80 border border-purple-900/20 text-zinc-200 rounded-tl-none backdrop-blur-sm'
+            ? 'bg-gradient-to-br from-purple-700 via-purple-800 to-indigo-950 text-white rounded-tr-none shadow-[0_10px_30px_rgba(124,58,237,0.15)] border border-purple-400/20' 
+            : `glass-card ${theme === 'dark' ? 'text-zinc-100' : 'text-zinc-800'} rounded-tl-none border-purple-500/10 shadow-md`
           }`}>
-            {renderContent(message.content)}
+            <div className={`prose ${theme === 'dark' ? 'prose-invert' : ''} max-w-none`}>
+              {renderContent(message.content)}
+            </div>
+            
             {message.attachments && message.attachments.length > 0 && (
-              <div className="mt-3 space-y-3">
+              <div className="mt-5 grid grid-cols-1 gap-4">
                 {message.attachments.map((img, idx) => (
-                  <div key={idx} className="relative group">
+                  <div key={idx} className="relative group overflow-hidden rounded-[20px] border border-purple-500/20 shadow-xl">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10"></div>
                     {isArchitected && (
-                      <div className="absolute top-2 left-2 z-10 px-2 py-1 bg-purple-950/80 backdrop-blur-md rounded-md text-[9px] font-bold text-purple-100 uppercase tracking-widest border border-purple-700/50 shadow-xl pointer-events-none">
-                        <i className="fas fa-cube mr-1 text-purple-400"></i>
-                        Architect Render
+                      <div className="absolute top-4 left-4 z-20 px-3 py-1 bg-purple-600/90 backdrop-blur-md rounded-full text-[9px] font-black text-white uppercase tracking-[0.2em] border border-white/20 shadow-2xl">
+                        <i className="fas fa-microchip mr-2"></i>
+                        V-RENDER ARCHITECT
                       </div>
                     )}
                     <img 
                       src={img} 
                       alt="attachment" 
-                      className="rounded-lg max-h-80 w-auto object-contain border border-purple-800/20 shadow-lg group-hover:border-purple-500 transition-colors" 
+                      className="w-full h-auto object-contain transition-transform duration-700 group-hover:scale-110" 
                     />
-                    <button 
-                      onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = img;
-                        link.download = `intellexa-render-${Date.now()}.png`;
-                        link.click();
-                      }}
-                      className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 bg-purple-950/60 backdrop-blur-md text-white p-2 rounded-lg text-xs hover:bg-purple-950/80 transition-all border border-purple-700/50"
-                    >
-                      <i className="fas fa-download"></i>
-                    </button>
+                    <div className="absolute bottom-4 right-4 z-20 translate-y-10 group-hover:translate-y-0 transition-transform duration-500">
+                      <button 
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = img;
+                          link.download = `intellexa-export-${Date.now()}.png`;
+                          link.click();
+                        }}
+                        className="bg-white text-black h-10 px-5 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-purple-600 hover:text-white transition-all shadow-xl"
+                      >
+                        <i className="fas fa-download mr-2"></i> Export Data
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-          <span className="text-[10px] text-purple-900 mt-1.5 font-bold uppercase tracking-wider opacity-70">
-            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          <span className={`text-[9px] ${theme === 'dark' ? 'text-zinc-600' : 'text-zinc-400'} mt-2.5 font-black uppercase tracking-[0.2em] px-2`}>
+            {isUser ? 'Client Node' : 'System Intelligence'} &bull; {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
       </div>

@@ -38,8 +38,8 @@ export interface ChatSession {
   subject: Subject;
 }
 
-export interface UserSession {
-  grade: GradeLevel;
-  subject: Subject;
-  messages: Message[];
+export interface ImageGenerationConfig {
+  prompt: string;
+  aspectRatio: "1:1" | "3:4" | "4:3" | "9:16" | "16:9";
+  quality: "standard" | "pro";
 }
