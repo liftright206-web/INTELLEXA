@@ -4,19 +4,9 @@ import Layout from './components/Layout';
 import ChatBubble from './components/ChatBubble';
 import LandingPage from './components/LandingPage';
 import Auth from './components/Auth';
+import QuotesBar from './components/QuotesBar';
 import { GradeLevel, Subject, Message, ChatSession, User, ImageGenerationConfig } from './types';
 import { getStreamingTutorResponse, generateTutorImage } from './services/geminiService';
-
-// Correctly augment the global Window interface to include aistudio.
-// This matches the pre-configured environment and avoids interface mismatch errors.
-declare global {
-  interface Window {
-    aistudio: {
-      hasSelectedApiKey: () => Promise<boolean>;
-      openSelectKey: () => Promise<void>;
-    };
-  }
-}
 
 const STORAGE_KEY = 'intellexa_history_v2';
 const USER_KEY = 'intellexa_user_v2';
@@ -169,11 +159,7 @@ const App: React.FC = () => {
       }
     } catch (error: any) {
       console.error(error);
-      // If the request fails with "Requested entity was not found.", prompt for key again as per guidelines
-      if (error?.message?.includes("Requested entity was not found.")) {
-        await window.aistudio.openSelectKey();
-      }
-      setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: s.messages.map(msg => msg.id === assistantMsgId ? { ...msg, content: "Neural link interrupted. Please check your connectivity or API credentials." } : msg) } : s));
+      setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: s.messages.map(msg => msg.id === assistantMsgId ? { ...msg, content: "Neural link interrupted. Please check your connectivity or system configuration." } : msg) } : s));
     } finally {
       setIsTyping(false);
     }
@@ -182,12 +168,6 @@ const App: React.FC = () => {
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputValue.trim() && !pendingImage) return;
-
-    // Check whether an API key has been selected before making an API call.
-    if (!(await window.aistudio.hasSelectedApiKey())) {
-      await window.aistudio.openSelectKey();
-      // Assume the key selection was successful after triggering openSelectKey() and proceed to the app.
-    }
 
     const text = inputValue;
     const img = pendingImage;
@@ -199,12 +179,6 @@ const App: React.FC = () => {
   const handleGenerateVisual = async (configOverride?: Partial<ImageGenerationConfig>) => {
     if (!activeSessionId) return;
     
-    // Check whether an API key has been selected before making an API call.
-    if (!(await window.aistudio.hasSelectedApiKey())) {
-      await window.aistudio.openSelectKey();
-      // Assume the key selection was successful after triggering openSelectKey() and proceed to the app.
-    }
-
     const finalConfig = { 
       ...visualConfig, 
       prompt: visualConfig.prompt || inputValue || "an educational diagram of the current topic",
@@ -239,10 +213,6 @@ const App: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Image generation failed:", error);
-      // If the request fails with "Requested entity was not found.", prompt for key again as per guidelines
-      if (error?.message?.includes("Requested entity was not found.")) {
-        await window.aistudio.openSelectKey();
-      }
       let errorText = "Visualization engine error. Could not allocate resources for this specific render.";
       
       const errorMsg: Message = {
@@ -327,7 +297,7 @@ const App: React.FC = () => {
     >
       <div className="flex flex-col h-full relative">
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 md:p-12 space-y-8 custom-scrollbar">
-          <div className="max-w-4xl mx-auto pb-32">
+          <div className="max-w-4xl mx-auto pb-48"> {/* Increased padding for bottom console + bar */}
             {messages.map((msg) => <ChatBubble key={msg.id} message={msg} theme={theme} />)}
             {(isTyping || isGeneratingImage) && (
               <div className="flex justify-start mb-6 animate-pulse">
@@ -398,7 +368,7 @@ const App: React.FC = () => {
         )}
 
         {/* Floating Chat Console */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 z-50 pointer-events-none">
+        <div className="absolute bottom-10 left-0 right-0 p-6 md:p-10 z-50 pointer-events-none">
           <div className="max-w-5xl mx-auto pointer-events-auto">
             {/* Quick Actions Console */}
             <div className="flex gap-3 mb-6 overflow-x-auto no-scrollbar pb-1">
@@ -458,6 +428,9 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Quotes Bar */}
+        <QuotesBar theme={theme} />
       </div>
     </Layout>
   );

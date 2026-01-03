@@ -209,26 +209,6 @@ const Layout: React.FC<LayoutProps> = ({
                           <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${theme === 'dark' ? 'text-zinc-500' : 'text-zinc-400'}`}>Identity Node</p>
                           <p className={`text-xs font-semibold truncate ${theme === 'dark' ? 'text-zinc-300' : 'text-zinc-700'}`}>{user?.email}</p>
                        </div>
-                       
-                       <div className="flex flex-col gap-2">
-                          <button 
-                             onClick={async () => {
-                               await window.aistudio.openSelectKey();
-                               setShowUserInfo(false);
-                             }}
-                             className="w-full py-2 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-amber-500 hover:text-white transition-all flex items-center justify-center gap-2"
-                          >
-                             <i className="fas fa-key"></i>
-                             Manage Pro API Key
-                          </button>
-                          <a 
-                            href="https://ai.google.dev/gemini-api/docs/billing" 
-                            target="_blank" 
-                            className="text-[8px] text-zinc-500 hover:text-purple-500 text-center underline font-bold"
-                          >
-                            Billing Documentation
-                          </a>
-                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 pt-2">
