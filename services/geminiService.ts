@@ -12,8 +12,8 @@ Core Objectives:
 4. Generate summaries, notes, conclusions, and examples.
 5. **VISUAL ARCHITECTURE**: 
    - Use Mermaid.js for flowcharts/logic (code block labeled 'mermaid').
-   - You can also trigger high-fidelity image generation for realistic visual aids (e.g., 3D biological models, historical scenes). 
-   - When appropriate, tell the user: "I can generate a high-fidelity visual for this. Simply use the 'VISUAL RENDER' quick action or ask me to architect it!"
+   - You can also trigger image generation for realistic visual aids (e.g., 3D biological models, historical scenes). 
+   - When appropriate, tell the user: "I can generate a visual for this. Simply use the 'VISUAL RENDER' quick action or ask me to architect it!"
 
 Teaching Style:
 - Friendly, patient, and motivating.
@@ -76,21 +76,18 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
   const apiKey = process.env.API_KEY;
   if (!apiKey) throw new Error("API Key is missing");
 
-  // Re-initialize to ensure we use the current API_KEY (especially for pro model)
   const ai = new GoogleGenAI({ apiKey });
-  
-  const model = config.quality === 'pro' ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
+  const model = 'gemini-2.5-flash-image';
 
   try {
     const response = await ai.models.generateContent({
       model: model,
       contents: [{
-        parts: [{ text: `Generate a high-quality, professional educational illustration or 3D render of: ${config.prompt}. It should be clear, detailed, and suitable for a academic presentation. Ensure accuracy for educational purposes.` }]
+        parts: [{ text: `Generate a high-quality, professional educational illustration or 3D render of: ${config.prompt}. It should be clear, detailed, and suitable for an academic presentation. Ensure accuracy for educational purposes.` }]
       }],
       config: {
         imageConfig: {
-          aspectRatio: config.aspectRatio,
-          ...(config.quality === 'pro' ? { imageSize: '1K' } : {})
+          aspectRatio: config.aspectRatio
         }
       }
     });
@@ -103,9 +100,6 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
     return null;
   } catch (error: any) {
     console.error("Image generation failed:", error);
-    if (error?.message?.includes("Requested entity was not found")) {
-      throw new Error("PRO_KEY_MISSING");
-    }
     return null;
   }
 }

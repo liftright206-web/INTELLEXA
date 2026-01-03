@@ -7,15 +7,14 @@ import Auth from './components/Auth';
 import { GradeLevel, Subject, Message, ChatSession, User, ImageGenerationConfig } from './types';
 import { getStreamingTutorResponse, generateTutorImage } from './services/geminiService';
 
-// Fix: Define AIStudio interface to satisfy TS compiler requirement for window object property.
-interface AIStudio {
-  hasSelectedApiKey: () => Promise<boolean>;
-  openSelectKey: () => Promise<void>;
-}
-
+// Correctly augment the global Window interface to include aistudio.
+// This matches the pre-configured environment and avoids interface mismatch errors.
 declare global {
   interface Window {
-    aistudio: AIStudio;
+    aistudio: {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    };
   }
 }
 
@@ -63,8 +62,7 @@ const App: React.FC = () => {
   
   const [visualConfig, setVisualConfig] = useState<ImageGenerationConfig>({
     prompt: '',
-    aspectRatio: '1:1',
-    quality: 'standard'
+    aspectRatio: '1:1'
   });
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -169,8 +167,12 @@ const App: React.FC = () => {
           return s;
         }));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      // If the request fails with "Requested entity was not found.", prompt for key again as per guidelines
+      if (error?.message?.includes("Requested entity was not found.")) {
+        await window.aistudio.openSelectKey();
+      }
       setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: s.messages.map(msg => msg.id === assistantMsgId ? { ...msg, content: "Neural link interrupted. Please check your connectivity or API credentials." } : msg) } : s));
     } finally {
       setIsTyping(false);
@@ -180,6 +182,13 @@ const App: React.FC = () => {
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputValue.trim() && !pendingImage) return;
+
+    // Check whether an API key has been selected before making an API call.
+    if (!(await window.aistudio.hasSelectedApiKey())) {
+      await window.aistudio.openSelectKey();
+      // Assume the key selection was successful after triggering openSelectKey() and proceed to the app.
+    }
+
     const text = inputValue;
     const img = pendingImage;
     setInputValue('');
@@ -190,19 +199,17 @@ const App: React.FC = () => {
   const handleGenerateVisual = async (configOverride?: Partial<ImageGenerationConfig>) => {
     if (!activeSessionId) return;
     
+    // Check whether an API key has been selected before making an API call.
+    if (!(await window.aistudio.hasSelectedApiKey())) {
+      await window.aistudio.openSelectKey();
+      // Assume the key selection was successful after triggering openSelectKey() and proceed to the app.
+    }
+
     const finalConfig = { 
       ...visualConfig, 
       prompt: visualConfig.prompt || inputValue || "an educational diagram of the current topic",
       ...configOverride 
     };
-
-    if (finalConfig.quality === 'pro') {
-      const hasKey = await window.aistudio.hasSelectedApiKey();
-      if (!hasKey) {
-        await window.aistudio.openSelectKey();
-        // Proceeding assuming selection was successful per guidelines
-      }
-    }
 
     setIsGeneratingImage(true);
     setShowVisualArchitect(false);
@@ -211,7 +218,7 @@ const App: React.FC = () => {
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: `[Visual Request: ${finalConfig.quality.toUpperCase()}] Architect a ${finalConfig.aspectRatio} visual render of: ${finalConfig.prompt}`,
+      content: `Architect a ${finalConfig.aspectRatio} visual render of: ${finalConfig.prompt}`,
       timestamp: new Date()
     };
     setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, userMsg] } : s));
@@ -222,7 +229,7 @@ const App: React.FC = () => {
         const assistantMsg: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: `I've successfully rendered a ${finalConfig.quality === 'pro' ? 'high-fidelity' : 'standard'} visual architecture for: **${finalConfig.prompt}**. Aspect Ratio: ${finalConfig.aspectRatio}.`,
+          content: `I've successfully rendered a visual architecture for: **${finalConfig.prompt}**. Aspect Ratio: ${finalConfig.aspectRatio}.`,
           timestamp: new Date(),
           attachments: [imageUrl]
         };
@@ -231,14 +238,12 @@ const App: React.FC = () => {
         throw new Error("Render failure");
       }
     } catch (error: any) {
-      let errorText = "Visualization engine error. Could not allocate resources for this specific render.";
-      
-      // Fix: Follow guideline to prompt user to select a key again if request fails with PRO_KEY_MISSING (mapped from "Requested entity was not found.")
-      if (error.message === "PRO_KEY_MISSING") {
-        errorText = "Pro Rendering requires a selected API key from a paid GCP project. Please select a valid key.";
-        // Trigger key selection dialog as required by guidelines for this specific failure state.
+      console.error("Image generation failed:", error);
+      // If the request fails with "Requested entity was not found.", prompt for key again as per guidelines
+      if (error?.message?.includes("Requested entity was not found.")) {
         await window.aistudio.openSelectKey();
       }
+      let errorText = "Visualization engine error. Could not allocate resources for this specific render.";
       
       const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
@@ -362,60 +367,28 @@ const App: React.FC = () => {
                     value={visualConfig.prompt}
                     onChange={(e) => setVisualConfig({...visualConfig, prompt: e.target.value})}
                     placeholder="Describe the educational visual..."
-                    className={`w-full h-24 p-4 rounded-2xl border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-purple-50 border-purple-100 text-zinc-900'} focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium resize-none`}
+                    className={`w-full h-32 p-4 rounded-2xl border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-purple-50 border-purple-100 text-zinc-900'} focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium resize-none`}
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-black text-purple-500 uppercase tracking-widest mb-3">Aspect Ratio</label>
-                    <select 
-                      value={visualConfig.aspectRatio}
-                      onChange={(e) => setVisualConfig({...visualConfig, aspectRatio: e.target.value as any})}
-                      className={`w-full p-3 rounded-xl border ${theme === 'dark' ? 'bg-zinc-900 border-white/10 text-white' : 'bg-white border-purple-100 text-zinc-900'} focus:outline-none focus:ring-2 focus:ring-purple-500/30`}
-                    >
-                      <option value="1:1">1:1 Square</option>
-                      <option value="16:9">16:9 Landscape</option>
-                      <option value="9:16">9:16 Portrait</option>
-                      <option value="4:3">4:3 Desktop</option>
-                      <option value="3:4">3:4 Mobile</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-purple-500 uppercase tracking-widest mb-3">Render Quality</label>
-                    <div className={`flex p-1 rounded-xl border ${theme === 'dark' ? 'bg-zinc-900 border-white/10' : 'bg-white border-purple-100'}`}>
-                      <button 
-                        onClick={() => setVisualConfig({...visualConfig, quality: 'standard'})}
-                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${visualConfig.quality === 'standard' ? 'bg-purple-600 text-white shadow-lg' : 'text-zinc-500'}`}
+                <div>
+                  <label className="block text-[10px] font-black text-purple-500 uppercase tracking-widest mb-3">Aspect Ratio</label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {['1:1', '16:9', '9:16', '4:3', '3:4'].map((ratio) => (
+                      <button
+                        key={ratio}
+                        onClick={() => setVisualConfig({...visualConfig, aspectRatio: ratio as any})}
+                        className={`py-2 rounded-xl text-[10px] font-black border transition-all ${visualConfig.aspectRatio === ratio ? 'bg-purple-600 border-purple-500 text-white shadow-lg' : theme === 'dark' ? 'bg-white/5 border-white/10 text-zinc-400' : 'bg-white border-purple-100 text-zinc-600'}`}
                       >
-                        Standard
+                        {ratio}
                       </button>
-                      <button 
-                        onClick={() => setVisualConfig({...visualConfig, quality: 'pro'})}
-                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${visualConfig.quality === 'pro' ? 'bg-amber-500 text-white shadow-lg' : 'text-zinc-500'}`}
-                      >
-                        PRO
-                      </button>
-                    </div>
+                    ))}
                   </div>
                 </div>
 
-                {visualConfig.quality === 'pro' && (
-                  <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20">
-                    <p className="text-[10px] text-amber-500 font-bold leading-relaxed">
-                      <i className="fas fa-circle-info mr-2"></i>
-                      Pro rendering requires a personal API key from a <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="underline font-black">paid GCP project</a>.
-                    </p>
-                  </div>
-                )}
-
                 <button 
                   onClick={() => handleGenerateVisual()}
-                  className={`w-full py-4 mt-2 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95 ${
-                    visualConfig.quality === 'pro' 
-                    ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-amber-500/20' 
-                    : 'bg-gradient-to-r from-purple-600 to-indigo-700 text-white shadow-purple-500/20'
-                  }`}
+                  className="w-full py-4 mt-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95 shadow-purple-500/20"
                 >
                   Architect Visual Node
                 </button>
@@ -436,7 +409,7 @@ const App: React.FC = () => {
                   disabled={isTyping || isGeneratingImage}
                   className={`flex-shrink-0 flex items-center gap-3 px-6 py-3 rounded-2xl ${theme === 'dark' ? 'bg-zinc-950/80 border-white/5 text-zinc-400' : 'bg-white border-purple-100 text-zinc-600'} backdrop-blur-xl border text-[10px] font-black uppercase tracking-widest hover:border-purple-500/50 hover:text-purple-600 transition-all active:scale-95 disabled:opacity-30 shadow-xl group`}
                 >
-                  <i className={`fas ${action.icon} ${action.id === 'visual-render' ? 'text-amber-400' : 'text-purple-500'} group-hover:scale-110 transition-transform`}></i>
+                  <i className={`fas ${action.icon} text-purple-500 group-hover:scale-110 transition-transform`}></i>
                   {action.label}
                 </button>
               ))}
