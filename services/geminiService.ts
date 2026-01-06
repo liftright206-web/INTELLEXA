@@ -1,5 +1,4 @@
-
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { Message, ImageGenerationConfig } from "../types";
 
 const SYSTEM_INSTRUCTION = `You are Intellexa, an expert AI architect and education specialist.
@@ -79,11 +78,44 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
   const ai = new GoogleGenAI({ apiKey });
   const model = 'gemini-2.5-flash-image';
 
+  const styleParts = [
+    config.style ? `in ${config.style} style` : "in a professional academic style",
+    config.cameraAngle ? `camera angle: ${config.cameraAngle}` : "",
+    config.lighting ? `lighting: ${config.lighting}` : "",
+    config.texture ? `materials and textures: ${config.texture}` : ""
+  ].filter(p => p !== "").join(", ");
+
+  const parts: any[] = [];
+
+  if (config.base64Source) {
+    // REFINEMENT MODE
+    parts.push({
+      inlineData: {
+        data: config.base64Source.split(',')[1] || config.base64Source,
+        mimeType: 'image/png'
+      }
+    });
+    parts.push({
+      text: `Refine the attached educational visual based on these specific architectural instructions: ${config.prompt}. 
+      Technical specifications to maintain or update: ${styleParts}. 
+      **IMPORTANT**: Do not include any text labels, captions, annotations, or callouts in the image unless specifically requested. Focus purely on the visual structure and accuracy.
+      Ensure the new render is scientifically accurate, detailed, and visually consistent with the previous logic while incorporating the requested changes.`
+    });
+  } else {
+    // GENERATION MODE
+    const prompt = `Generate a high-quality, professional educational illustration or 3D render of: ${config.prompt}.
+    Technical specifications: ${styleParts}. 
+    The visual should be medically or scientifically accurate, highly detailed, and suitable for an advanced academic presentation. 
+    **IMPORTANT**: Do not include any text labels, captions, annotations, or callouts in the image unless specifically requested. Focus purely on the visual structure and accuracy.
+    Ensure clarity for educational purposes and a premium aesthetic.`;
+    parts.push({ text: prompt });
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: model,
       contents: [{
-        parts: [{ text: `Generate a high-quality, professional educational illustration or 3D render of: ${config.prompt}. It should be clear, detailed, and suitable for an academic presentation. Ensure accuracy for educational purposes.` }]
+        parts: parts
       }],
       config: {
         imageConfig: {
@@ -101,5 +133,49 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
   } catch (error: any) {
     console.error("Image generation failed:", error);
     return null;
+  }
+}
+
+export async function getVisualSuggestions(history: Message[]): Promise<string[]> {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) return [];
+
+  const ai = new GoogleGenAI({ apiKey });
+  
+  // Format history for context
+  const context = history.slice(-6).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+  
+  const prompt = `Based on this educational chat history, suggest 3 highly specific and visually impactful educational diagrams, 3D renders, or historical scenes that would help the student understand the current topic better. 
+  
+  History:
+  ${context}
+  
+  Provide exactly 3 short, professional, and clear image generation prompts.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [{ parts: [{ text: prompt }] }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.STRING,
+            description: "A short, descriptive prompt for an educational visual."
+          }
+        },
+        systemInstruction: "You are a creative director for educational content. Your goal is to suggest visual aids that clarify complex topics."
+      }
+    });
+    
+    return JSON.parse(response.text || "[]");
+  } catch (error) {
+    console.error("Failed to fetch suggestions:", error);
+    return [
+      "3D cross-section of the core concept",
+      "Historical visualization of this event",
+      "Abstract logic map of these relationships"
+    ];
   }
 }

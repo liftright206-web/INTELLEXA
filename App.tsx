@@ -6,11 +6,44 @@ import LandingPage from './components/LandingPage';
 import Auth from './components/Auth';
 import QuotesBar from './components/QuotesBar';
 import { GradeLevel, Subject, Message, ChatSession, User, ImageGenerationConfig } from './types';
-import { getStreamingTutorResponse, generateTutorImage } from './services/geminiService';
+import { getStreamingTutorResponse, generateTutorImage, getVisualSuggestions } from './services/geminiService';
 
 const STORAGE_KEY = 'intellexa_history_v2';
 const USER_KEY = 'intellexa_user_v2';
 const THEME_KEY = 'intellexa_theme';
+
+const VISUAL_STYLES = [
+  { id: 'academic', label: 'Academic Render', icon: 'fa-graduation-cap' },
+  { id: '3d-render', label: '3D Isometric', icon: 'fa-cube' },
+  { id: 'photorealistic', label: 'Photorealistic', icon: 'fa-camera' },
+  { id: 'blueprint', label: 'Technical Blueprint', icon: 'fa-drafting-compass' },
+  { id: 'sketch', label: 'Pencil Sketch', icon: 'fa-pen-nib' },
+  { id: 'diagram', label: 'Flat Diagram', icon: 'fa-chart-pie' }
+];
+
+const CAMERA_ANGLES = [
+  { id: 'eye-level', label: 'Eye Level', icon: 'fa-eye' },
+  { id: 'top-down', label: 'Top Down', icon: 'fa-arrow-down' },
+  { id: 'low-angle', label: 'Hero / Low Angle', icon: 'fa-up-long' },
+  { id: 'macro', label: 'Macro Close-up', icon: 'fa-magnifying-glass-plus' },
+  { id: 'wide', label: 'Wide Panorama', icon: 'fa-arrows-left-right' }
+];
+
+const LIGHTING_OPTIONS = [
+  { id: 'cinematic', label: 'Cinematic Studio', icon: 'fa-film' },
+  { id: 'soft', label: 'Soft Ambient', icon: 'fa-cloud' },
+  { id: 'scientific', label: 'Clean Laboratory', icon: 'fa-flask' },
+  { id: 'dramatic', label: 'High Contrast', icon: 'fa-bolt' },
+  { id: 'neon', label: 'Holographic Glow', icon: 'fa-wand-sparkles' }
+];
+
+const TEXTURE_OPTIONS = [
+  { id: 'polished', label: 'Polished Metal', icon: 'fa-circle-half-stroke' },
+  { id: 'matte', label: 'Matte Polymer', icon: 'fa-square' },
+  { id: 'glass', label: 'Translucent Glass', icon: 'fa-ghost' },
+  { id: 'carbon', label: 'High-Tech Carbon', icon: 'fa-dna' },
+  { id: 'paper', label: 'Organic / Paper', icon: 'fa-leaf' }
+];
 
 const App: React.FC = () => {
   const [view, setView] = useState<'landing' | 'auth' | 'chat'>('landing');
@@ -49,14 +82,24 @@ const App: React.FC = () => {
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [showVisualArchitect, setShowVisualArchitect] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [refiningImage, setRefiningImage] = useState<string | null>(null);
   
+  const [visualSuggestions, setVisualSuggestions] = useState<string[]>([]);
+  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
+
   const [visualConfig, setVisualConfig] = useState<ImageGenerationConfig>({
     prompt: '',
-    aspectRatio: '1:1'
+    aspectRatio: '1:1',
+    style: 'academic',
+    cameraAngle: 'eye-level',
+    lighting: 'scientific',
+    texture: 'matte'
   });
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     if (theme === 'light') {
@@ -83,6 +126,64 @@ const App: React.FC = () => {
       });
     }
   }, [activeSessionId, sessions, isTyping, isGeneratingImage]);
+
+  // Fetch suggestions when modal opens
+  useEffect(() => {
+    if (showVisualArchitect && !refiningImage && activeSession) {
+      const fetchIdeas = async () => {
+        setIsFetchingSuggestions(true);
+        const ideas = await getVisualSuggestions(activeSession.messages);
+        setVisualSuggestions(ideas);
+        setIsFetchingSuggestions(false);
+      };
+      fetchIdeas();
+    }
+  }, [showVisualArchitect, refiningImage]);
+
+  // Speech Recognition Initialization
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+
+      recognitionRef.current.onresult = (event: any) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            transcript += event.results[i][0].transcript;
+          }
+        }
+        if (transcript) {
+          setInputValue(prev => prev + (prev ? ' ' : '') + transcript);
+        }
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      alert("Speech recognition is not supported in this browser.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+    } else {
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const messages = activeSession ? activeSession.messages : [];
@@ -173,15 +274,17 @@ const App: React.FC = () => {
     const img = pendingImage;
     setInputValue('');
     setPendingImage(null);
+    if (isListening) recognitionRef.current.stop();
     await sendMessage(text, img || undefined);
   };
 
   const handleGenerateVisual = async (configOverride?: Partial<ImageGenerationConfig>) => {
     if (!activeSessionId) return;
     
-    const finalConfig = { 
+    const finalConfig: ImageGenerationConfig = { 
       ...visualConfig, 
       prompt: visualConfig.prompt || inputValue || "an educational diagram of the current topic",
+      base64Source: refiningImage || undefined,
       ...configOverride 
     };
 
@@ -192,7 +295,9 @@ const App: React.FC = () => {
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: `Architect a ${finalConfig.aspectRatio} visual render of: ${finalConfig.prompt}`,
+      content: refiningImage 
+        ? `Refine Architecting Visual: ${finalConfig.prompt} [Refinement Loop Active]` 
+        : `Architect a ${finalConfig.aspectRatio} ${finalConfig.style} render of: ${finalConfig.prompt} [Advanced Node Active]`,
       timestamp: new Date()
     };
     setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, userMsg] } : s));
@@ -203,7 +308,9 @@ const App: React.FC = () => {
         const assistantMsg: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: `I've successfully rendered a visual architecture for: **${finalConfig.prompt}**. Aspect Ratio: ${finalConfig.aspectRatio}.`,
+          content: refiningImage 
+            ? `Render refinement complete. I have updated the visual logic according to your latest parameters.`
+            : `I've architected a visual aid with advanced parameters:\n\n- **Style**: ${finalConfig.style}\n- **Perspective**: ${finalConfig.cameraAngle}\n- **Lighting**: ${finalConfig.lighting}\n- **Materials**: ${finalConfig.texture}\n- **Aspect Ratio**: ${finalConfig.aspectRatio}`,
           timestamp: new Date(),
           attachments: [imageUrl]
         };
@@ -213,7 +320,7 @@ const App: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Image generation failed:", error);
-      let errorText = "Visualization engine error. Could not allocate resources for this specific render.";
+      let errorText = "Visualization engine error. Could not allocate resources for this specific architectural render.";
       
       const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
@@ -224,7 +331,16 @@ const App: React.FC = () => {
       setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, errorMsg] } : s));
     } finally {
       setIsGeneratingImage(false);
+      setRefiningImage(null);
+      setVisualConfig(prev => ({ ...prev, prompt: '' }));
+      setVisualSuggestions([]);
     }
+  };
+
+  const handleRefine = (image: string) => {
+    setRefiningImage(image);
+    setVisualConfig(prev => ({ ...prev, prompt: '' }));
+    setShowVisualArchitect(true);
   };
 
   const handleAction = async (actionType: 'mock-test' | 'flowchart' | 'summary' | 'problem-solver' | 'visual-render') => {
@@ -232,6 +348,7 @@ const App: React.FC = () => {
     
     if (actionType === 'visual-render') {
       setVisualConfig(prev => ({ ...prev, prompt: inputValue }));
+      setRefiningImage(null);
       setShowVisualArchitect(true);
       return;
     }
@@ -297,8 +414,8 @@ const App: React.FC = () => {
     >
       <div className="flex flex-col h-full relative">
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 md:p-12 space-y-8 custom-scrollbar">
-          <div className="max-w-4xl mx-auto pb-48"> {/* Increased padding for bottom console + bar */}
-            {messages.map((msg) => <ChatBubble key={msg.id} message={msg} theme={theme} />)}
+          <div className="max-w-4xl mx-auto pb-48">
+            {messages.map((msg) => <ChatBubble key={msg.id} message={msg} theme={theme} onRefine={handleRefine} />)}
             {(isTyping || isGeneratingImage) && (
               <div className="flex justify-start mb-6 animate-pulse">
                 <div className={`${theme === 'dark' ? 'bg-zinc-950 border-purple-500/30' : 'bg-white border-purple-200'} border px-6 py-4 rounded-3xl rounded-tl-none shadow-xl flex items-center gap-4`}>
@@ -318,50 +435,195 @@ const App: React.FC = () => {
 
         {/* Visual Architect Modal */}
         {showVisualArchitect && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className={`w-full max-w-lg glass-card rounded-[32px] p-8 shadow-2xl border-purple-500/20 animate-in zoom-in-95 duration-300 ${theme === 'dark' ? 'bg-[#0a0515]' : 'bg-white'}`}>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/70 backdrop-blur-xl animate-in fade-in duration-300">
+            <div className={`w-full max-w-4xl glass-card rounded-[40px] p-10 shadow-2xl border-purple-500/20 animate-in zoom-in-95 duration-300 overflow-y-auto max-h-[95vh] custom-scrollbar ${theme === 'dark' ? 'bg-[#0a0515]' : 'bg-white'}`}>
               <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                  <i className="fas fa-wand-magic-sparkles text-purple-500 text-xl"></i>
-                  <h3 className={`text-xl font-black ${theme === 'dark' ? 'text-white' : 'text-zinc-900'} tracking-tight`}>Visual Architect</h3>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
+                    <i className="fas fa-wand-magic-sparkles text-xl"></i>
+                  </div>
+                  <div>
+                    <h3 className={`text-2xl font-black ${theme === 'dark' ? 'text-white' : 'text-zinc-900'} tracking-tight`}>
+                      {refiningImage ? 'Visual Refinement Node' : 'Visual Architect Console'}
+                    </h3>
+                    <p className={`text-[10px] font-bold ${theme === 'dark' ? 'text-zinc-500' : 'text-zinc-400'} uppercase tracking-widest`}>
+                      {refiningImage ? 'Specify modifications to the existing render' : 'Advanced Architectural Render Settings'}
+                    </p>
+                  </div>
                 </div>
-                <button onClick={() => setShowVisualArchitect(false)} className="text-zinc-500 hover:text-red-500 transition-colors">
+                <button onClick={() => { setShowVisualArchitect(false); setRefiningImage(null); }} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-red-500/10 text-zinc-500 hover:text-red-500 transition-all">
                   <i className="fas fa-times text-xl"></i>
                 </button>
               </div>
 
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-[10px] font-black text-purple-500 uppercase tracking-widest mb-3">Architectural Prompt</label>
-                  <textarea 
-                    value={visualConfig.prompt}
-                    onChange={(e) => setVisualConfig({...visualConfig, prompt: e.target.value})}
-                    placeholder="Describe the educational visual..."
-                    className={`w-full h-32 p-4 rounded-2xl border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-purple-50 border-purple-100 text-zinc-900'} focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium resize-none`}
-                  />
-                </div>
+              <div className="space-y-10">
+                {refiningImage && (
+                  <div className="flex gap-6 items-center p-6 rounded-3xl bg-purple-500/5 border border-purple-500/20 animate-in slide-in-from-top-4 duration-500">
+                    <div className="w-24 h-24 rounded-2xl overflow-hidden border border-purple-500/30 flex-shrink-0">
+                      <img src={refiningImage} alt="refining" className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-purple-500 uppercase tracking-widest mb-1">Source Material Active</p>
+                      <p className={`text-sm font-medium ${theme === 'dark' ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                        Instruction node will focus on modifying the visual data of this specific render.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
-                <div>
-                  <label className="block text-[10px] font-black text-purple-500 uppercase tracking-widest mb-3">Aspect Ratio</label>
-                  <div className="grid grid-cols-5 gap-2">
-                    {['1:1', '16:9', '9:16', '4:3', '3:4'].map((ratio) => (
-                      <button
-                        key={ratio}
-                        onClick={() => setVisualConfig({...visualConfig, aspectRatio: ratio as any})}
-                        className={`py-2 rounded-xl text-[10px] font-black border transition-all ${visualConfig.aspectRatio === ratio ? 'bg-purple-600 border-purple-500 text-white shadow-lg' : theme === 'dark' ? 'bg-white/5 border-white/10 text-zinc-400' : 'bg-white border-purple-100 text-zinc-600'}`}
-                      >
-                        {ratio}
-                      </button>
-                    ))}
+                {!refiningImage && (
+                  <div className="space-y-4">
+                    <label className="block text-[10px] font-black text-purple-500 uppercase tracking-widest flex items-center gap-2">
+                      <i className="fas fa-lightbulb"></i> Cognitive Suggestions
+                    </label>
+                    <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                      {isFetchingSuggestions ? (
+                        Array(3).fill(0).map((_, i) => (
+                          <div key={i} className={`flex-shrink-0 h-10 w-48 rounded-xl animate-pulse ${theme === 'dark' ? 'bg-white/5' : 'bg-purple-100/50'}`}></div>
+                        ))
+                      ) : visualSuggestions.map((suggestion, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setVisualConfig(prev => ({ ...prev, prompt: suggestion }))}
+                          className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-[10px] font-bold border transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10' : 'bg-white border-purple-100 text-purple-600 hover:bg-purple-50 shadow-sm'} flex items-center gap-2 group whitespace-nowrap`}
+                        >
+                          <i className="fas fa-sparkles text-purple-500 group-hover:scale-110 transition-transform"></i>
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                  {/* Left Column: Prompt & Aspect Ratio */}
+                  <div className="space-y-8">
+                    <div>
+                      <label className="block text-[10px] font-black text-purple-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <i className="fas fa-terminal"></i> 
+                        {refiningImage ? 'Refinement Instructions' : 'Architectural Prompt'}
+                      </label>
+                      <textarea 
+                        value={visualConfig.prompt}
+                        onChange={(e) => setVisualConfig({...visualConfig, prompt: e.target.value})}
+                        placeholder={refiningImage ? "e.g. Add more detail to the mitochondria, change the lighting to cinematic..." : "Describe the conceptual visual in architectural detail..."}
+                        className={`w-full h-40 p-5 rounded-3xl border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-purple-50 border-purple-100 text-zinc-900'} focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all font-medium resize-none text-sm leading-relaxed`}
+                      />
+                    </div>
+
+                    {!refiningImage && (
+                      <div>
+                        <label className="block text-[10px] font-black text-purple-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                          <i className="fas fa-expand"></i> Output Aspect Ratio
+                        </label>
+                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                          {['1:1', '16:9', '9:16', '4:3', '3:4'].map((ratio) => (
+                            <button
+                              key={ratio}
+                              onClick={() => setVisualConfig({...visualConfig, aspectRatio: ratio as any})}
+                              className={`py-3 rounded-2xl text-[10px] font-black border transition-all ${visualConfig.aspectRatio === ratio ? 'bg-purple-600 border-purple-500 text-white shadow-lg' : theme === 'dark' ? 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10' : 'bg-white border-purple-100 text-zinc-600 hover:bg-purple-50'}`}
+                            >
+                              {ratio}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right Column: Style & Perspective */}
+                  <div className="space-y-8">
+                    <div>
+                      <label className="block text-[10px] font-black text-purple-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <i className="fas fa-palette"></i> Synthesis Style
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {VISUAL_STYLES.map((style) => (
+                          <button
+                            key={style.id}
+                            onClick={() => setVisualConfig({...visualConfig, style: style.id})}
+                            className={`flex items-center gap-3 px-5 py-3.5 rounded-2xl text-[11px] font-bold border transition-all ${visualConfig.style === style.id ? 'bg-purple-600 border-purple-500 text-white shadow-lg' : theme === 'dark' ? 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10' : 'bg-white border-purple-100 text-zinc-600 hover:bg-purple-50'}`}
+                          >
+                            <i className={`fas ${style.icon} w-4 text-sm opacity-70`}></i>
+                            {style.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-purple-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <i className="fas fa-video"></i> Camera Perspective
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {CAMERA_ANGLES.map((angle) => (
+                          <button
+                            key={angle.id}
+                            onClick={() => setVisualConfig({...visualConfig, cameraAngle: angle.id})}
+                            className={`flex items-center gap-3 px-5 py-3.5 rounded-2xl text-[11px] font-bold border transition-all ${visualConfig.cameraAngle === angle.id ? 'bg-purple-600 border-purple-500 text-white shadow-lg' : theme === 'dark' ? 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10' : 'bg-white border-purple-100 text-zinc-600 hover:bg-purple-50'}`}
+                          >
+                            <i className={`fas ${angle.icon} w-4 text-sm opacity-70`}></i>
+                            {angle.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <button 
-                  onClick={() => handleGenerateVisual()}
-                  className="w-full py-4 mt-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95 shadow-purple-500/20"
-                >
-                  Architect Visual Node
-                </button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <div>
+                    <label className="block text-[10px] font-black text-purple-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <i className="fas fa-sun"></i> Lighting Environment
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {LIGHTING_OPTIONS.map((light) => (
+                        <button
+                          key={light.id}
+                          onClick={() => setVisualConfig({...visualConfig, lighting: light.id})}
+                          className={`flex flex-col items-center justify-center gap-2 py-4 rounded-2xl text-[10px] font-bold border transition-all ${visualConfig.lighting === light.id ? 'bg-purple-600 border-purple-500 text-white shadow-lg' : theme === 'dark' ? 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10' : 'bg-white border-purple-100 text-zinc-600 hover:bg-purple-50'}`}
+                        >
+                          <i className={`fas ${light.icon} text-lg mb-1`}></i>
+                          {light.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-purple-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <i className="fas fa-brush"></i> Surface & Material
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {TEXTURE_OPTIONS.map((tex) => (
+                        <button
+                          key={tex.id}
+                          onClick={() => setVisualConfig({...visualConfig, texture: tex.id})}
+                          className={`flex flex-col items-center justify-center gap-2 py-4 rounded-2xl text-[10px] font-bold border transition-all ${visualConfig.texture === tex.id ? 'bg-purple-600 border-purple-500 text-white shadow-lg' : theme === 'dark' ? 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10' : 'bg-white border-purple-100 text-zinc-600 hover:bg-purple-50'}`}
+                        >
+                          <i className={`fas ${tex.icon} text-lg mb-1`}></i>
+                          {tex.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-10 flex flex-col sm:flex-row gap-4">
+                  <button 
+                    onClick={() => { setShowVisualArchitect(false); setRefiningImage(null); setVisualSuggestions([]); }}
+                    className={`flex-1 py-5 rounded-3xl text-[11px] font-black uppercase tracking-[0.2em] border transition-all ${theme === 'dark' ? 'border-white/10 text-zinc-400 hover:bg-white/5' : 'border-purple-100 text-zinc-500 hover:bg-zinc-50'}`}
+                  >
+                    Abort {refiningImage ? 'Refinement' : 'Synthesis'}
+                  </button>
+                  <button 
+                    onClick={() => handleGenerateVisual()}
+                    className="flex-[2] py-5 bg-gradient-to-r from-purple-600 via-indigo-700 to-fuchsia-700 text-white rounded-3xl text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95 shadow-purple-500/20 flex items-center justify-center gap-4 group"
+                  >
+                    <i className="fas fa-microchip group-hover:rotate-180 transition-transform duration-700"></i>
+                    {refiningImage ? 'Synthesize Refined Render' : 'Initiate Multi-Node Render'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -389,7 +651,7 @@ const App: React.FC = () => {
                {pendingImage && (
                 <div className="relative inline-block m-3 animate-in zoom-in duration-300">
                   <img src={pendingImage} alt="preview" className="h-28 w-28 object-cover rounded-2xl border-2 border-purple-500 shadow-2xl" />
-                  <button onClick={() => setPendingImage(null)} className="absolute -top-3 -right-3 bg-red-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-2xl hover:bg-red-600">
+                  <button onClick={() => setPendingImage(null)} className="absolute -top-3 -right-3 bg-red-500 text-white h-7 rounded-full flex items-center justify-center text-xs shadow-2xl hover:bg-red-600">
                     <i className="fas fa-times"></i>
                   </button>
                 </div>
@@ -401,6 +663,7 @@ const App: React.FC = () => {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isTyping || isGeneratingImage}
                   className="w-14 h-14 flex items-center justify-center text-zinc-500 hover:text-purple-400 transition-colors rounded-2xl hover:bg-purple-500/5"
+                  title="Attach File"
                 >
                   <i className="fas fa-paperclip text-xl"></i>
                 </button>
@@ -416,6 +679,24 @@ const App: React.FC = () => {
                 />
 
                 <div className="flex items-center gap-2 pr-2">
+                  <button 
+                    type="button"
+                    onClick={toggleListening}
+                    disabled={isTyping || isGeneratingImage}
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${isListening ? 'bg-red-500/10 text-red-500 animate-pulse' : theme === 'dark' ? 'hover:bg-white/5 text-zinc-500' : 'hover:bg-purple-50 text-purple-400'} hover:text-purple-500`}
+                    title={isListening ? "Stop Listening" : "Start Dictation"}
+                  >
+                    <i className={`fas ${isListening ? 'fa-microphone-slash' : 'fa-microphone'} text-lg`}></i>
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => handleAction('visual-render')}
+                    disabled={isTyping || isGeneratingImage}
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${theme === 'dark' ? 'hover:bg-white/5 text-zinc-500' : 'hover:bg-purple-50 text-purple-400'} hover:text-purple-500`}
+                    title="Advanced V-Render Architect"
+                  >
+                    <i className="fas fa-sliders-h text-lg"></i>
+                  </button>
                   <button 
                     type="submit"
                     disabled={isTyping || isGeneratingImage || (!inputValue.trim() && !pendingImage)}

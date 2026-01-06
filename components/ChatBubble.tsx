@@ -7,9 +7,10 @@ import { IntellexaIcon } from './Branding';
 interface ChatBubbleProps {
   message: Message;
   theme: 'dark' | 'light';
+  onRefine?: (image: string) => void;
 }
 
-const ChatBubble: React.FC<ChatBubbleProps> = ({ message, theme }) => {
+const ChatBubble: React.FC<ChatBubbleProps> = ({ message, theme, onRefine }) => {
   const isUser = message.role === 'user';
 
   const renderContent = (content: string) => {
@@ -74,7 +75,15 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message, theme }) => {
                       alt="attachment" 
                       className="w-full h-auto object-contain transition-transform duration-700 group-hover:scale-110" 
                     />
-                    <div className="absolute bottom-4 right-4 z-20 translate-y-10 group-hover:translate-y-0 transition-transform duration-500">
+                    <div className="absolute bottom-4 right-4 z-20 flex gap-2 translate-y-10 group-hover:translate-y-0 transition-transform duration-500">
+                      {isArchitected && onRefine && (
+                        <button 
+                          onClick={() => onRefine(img)}
+                          className="bg-purple-600 text-white h-10 px-5 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-purple-700 transition-all shadow-xl"
+                        >
+                          <i className="fas fa-wand-magic-sparkles mr-2"></i> Refine Architect
+                        </button>
+                      )}
                       <button 
                         onClick={() => {
                           const link = document.createElement('a');

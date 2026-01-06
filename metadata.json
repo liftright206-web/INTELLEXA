@@ -2,6 +2,7 @@
   "name": "Intellexa",
   "description": "A sophisticated AI-powered educational assistant designed for students (grades 6-12) to help explain complex concepts, solve problems step-by-step, and provide personalized study support.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "microphone"
   ]
 }
