@@ -1,5 +1,5 @@
-import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
-import { Message, ImageGenerationConfig } from "../types";
+import { GoogleGenAI, GenerateContentResponse, Type, Modality } from "@google/genai";
+import { Message, ImageGenerationConfig, ChatMode, GroundingLink } from "../types";
 
 const SYSTEM_INSTRUCTION = `You are Intellexa, an expert AI architect and education specialist.
 Your task is to function as a universal virtual tutor, study partner, and project assistant.
@@ -10,32 +10,35 @@ Core Objectives:
 3. Assist in homework, assignments, projects, and exam preparation across all levels of education.
 4. Generate summaries, notes, conclusions, and examples.
 5. **VISUAL ARCHITECTURE**: 
-   - Use Mermaid.js for flowcharts/logic (code block labeled 'mermaid').
-   - You can also trigger image generation for realistic visual aids (e.g., 3D biological models, historical scenes). 
-   - When appropriate, tell the user: "I can generate a visual for this. Simply use the 'VISUAL RENDER' quick action or ask me to architect it!"
+   - Use Mermaid.js for flowcharts, logic maps, and conceptual diagrams (always use code blocks labeled 'mermaid').
+   - You can trigger image generation or editing for high-fidelity educational visuals.
 
 Teaching Style:
-- Friendly, patient, and motivating.
+- Professional, academic, patient, and motivating.
 - Use real-life examples, analogies, and text-based diagrams.
-- Break complex topics into points, tables, or steps.
-- Adopt a "borderless" approach to learning.
+- Break complex topics into clear points, tables, or numbered steps.
 
 Output Format:
-- Use clear headings.
-- Use bullet points or numbered steps.
-- Use mermaid blocks for diagrams.
+- Use clear headings and structured sections.
+- Use bullet points or numbered steps for readability.
+- Use mermaid blocks for structural diagrams when helpful.
 - End with a "Quick Revision Tip".`;
 
 export async function* getStreamingTutorResponse(
   prompt: string,
   history: Message[],
+  mode: ChatMode = 'lite',
   image?: string
 ) {
   const apiKey = process.env.API_KEY;
   if (!apiKey) throw new Error("API Key is missing");
 
   const ai = new GoogleGenAI({ apiKey });
-  const modelName = 'gemini-3-flash-preview';
+  
+  // Model Selection based on Mode and Input
+  let modelName = 'gemini-2.5-flash-lite-latest'; // Default Fast Mode
+  if (mode === 'search') modelName = 'gemini-3-flash-preview';
+  if (mode === 'complex' || image) modelName = 'gemini-3-pro-preview';
 
   const contents: any[] = [];
   
@@ -57,38 +60,59 @@ export async function* getStreamingTutorResponse(
   }
   contents.push({ role: 'user', parts: currentParts });
 
+  const config: any = {
+    systemInstruction: SYSTEM_INSTRUCTION,
+    temperature: 0.7,
+  };
+
+  if (mode === 'search') {
+    config.tools = [{ googleSearch: {} }];
+  }
+
+  if (mode === 'complex' && !image) {
+    // Thinking mode enabled for complex text queries
+    config.thinkingConfig = { thinkingBudget: 32768 };
+  }
+
   const stream = await ai.models.generateContentStream({
     model: modelName,
     contents,
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      temperature: 0.7,
-    },
+    config,
   });
 
   for await (const chunk of stream) {
-    yield chunk.text || "";
+    const text = chunk.text || "";
+    const links: GroundingLink[] = [];
+    
+    // Extract grounding links if available
+    if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) {
+      chunk.candidates[0].groundingMetadata.groundingChunks.forEach((chunk: any) => {
+        if (chunk.web) {
+          links.push({
+            uri: chunk.web.uri,
+            title: chunk.web.title
+          });
+        }
+      });
+    }
+
+    yield { text, links };
   }
 }
 
-export async function generateTutorImage(config: ImageGenerationConfig): Promise<string | null> {
+export async function generateTutorImage(config: ImageGenerationConfig): Promise<string> {
   const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("API Key is missing");
+  if (!apiKey) throw new Error("Configuration Error: API Key is missing.");
 
   const ai = new GoogleGenAI({ apiKey });
-  const model = 'gemini-2.5-flash-image';
-
-  const styleParts = [
-    config.style ? `in ${config.style} style` : "in a professional academic style",
-    config.cameraAngle ? `camera angle: ${config.cameraAngle}` : "",
-    config.lighting ? `lighting: ${config.lighting}` : "",
-    config.texture ? `materials and textures: ${config.texture}` : ""
-  ].filter(p => p !== "").join(", ");
+  
+  // Standardizing on Gemini 2.5 Flash Image for all tasks
+  const modelName = 'gemini-2.5-flash-image';
 
   const parts: any[] = [];
 
   if (config.base64Source) {
-    // REFINEMENT MODE
+    // IMAGE EDITING MODE
     parts.push({
       inlineData: {
         data: config.base64Source.split(',')[1] || config.base64Source,
@@ -96,24 +120,21 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
       }
     });
     parts.push({
-      text: `Refine the attached educational visual based on these specific architectural instructions: ${config.prompt}. 
-      Technical specifications to maintain or update: ${styleParts}. 
-      **IMPORTANT**: Do not include any text labels, captions, annotations, or callouts in the image unless specifically requested. Focus purely on the visual structure and accuracy.
-      Ensure the new render is scientifically accurate, detailed, and visually consistent with the previous logic while incorporating the requested changes.`
+      text: `Perform high-fidelity editing on this image based on the following request: ${config.prompt}. 
+      Common requests include adding filters, removing background objects, or adding elements. 
+      Maintain educational clarity and professional aesthetic.`
     });
   } else {
     // GENERATION MODE
-    const prompt = `Generate a high-quality, professional educational illustration or 3D render of: ${config.prompt}.
-    Technical specifications: ${styleParts}. 
-    The visual should be medically or scientifically accurate, highly detailed, and suitable for an advanced academic presentation. 
-    **IMPORTANT**: Do not include any text labels, captions, annotations, or callouts in the image unless specifically requested. Focus purely on the visual structure and accuracy.
-    Ensure clarity for educational purposes and a premium aesthetic.`;
+    const prompt = `Architect a professional educational illustration or 3D render: ${config.prompt}.
+    The visual should be medically or scientifically accurate, highly detailed, and suitable for academic presentation. 
+    **IMPORTANT**: Do not include any text labels unless specifically requested.`;
     parts.push({ text: prompt });
   }
 
   try {
     const response = await ai.models.generateContent({
-      model: model,
+      model: modelName,
       contents: [{
         parts: parts
       }],
@@ -124,33 +145,40 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
       }
     });
 
+    let imageUrl = '';
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) {
-        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        imageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        break;
       }
     }
-    return null;
+
+    if (!imageUrl) {
+      throw new Error("The synthesis engine returned an empty output.");
+    }
+
+    return imageUrl;
   } catch (error: any) {
-    console.error("Image generation failed:", error);
-    return null;
+    const errorMsg = error.message || "";
+    if (errorMsg.toLowerCase().includes("safety")) {
+      throw new Error("Architectural Breach: Safety filter triggered.");
+    }
+    throw new Error(error.message || "Synthesis Engine Failure.");
   }
 }
 
-export async function getVisualSuggestions(history: Message[]): Promise<string[]> {
+export async function getVisualSuggestions(history: Message[], currentPrompt?: string): Promise<string[]> {
   const apiKey = process.env.API_KEY;
   if (!apiKey) return [];
 
   const ai = new GoogleGenAI({ apiKey });
-  
-  // Format history for context
   const context = history.slice(-6).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
   
-  const prompt = `Based on this educational chat history, suggest 3 highly specific and visually impactful educational diagrams, 3D renders, or historical scenes that would help the student understand the current topic better. 
-  
+  const prompt = `Based on this educational chat history ${currentPrompt ? 'and the user\'s current draft' : ''}, suggest 3 highly specific educational visual prompts for an AI architect. 
   History:
   ${context}
-  
-  Provide exactly 3 short, professional, and clear image generation prompts.`;
+  ${currentPrompt ? `Current User Draft: "${currentPrompt}"` : ""}
+  Provide exactly 3 short, descriptive prompts.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -160,22 +188,14 @@ export async function getVisualSuggestions(history: Message[]): Promise<string[]
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
-          items: {
-            type: Type.STRING,
-            description: "A short, descriptive prompt for an educational visual."
-          }
+          items: { type: Type.STRING }
         },
-        systemInstruction: "You are a creative director for educational content. Your goal is to suggest visual aids that clarify complex topics."
+        systemInstruction: "You are a creative director for educational content."
       }
     });
     
     return JSON.parse(response.text || "[]");
   } catch (error) {
-    console.error("Failed to fetch suggestions:", error);
-    return [
-      "3D cross-section of the core concept",
-      "Historical visualization of this event",
-      "Abstract logic map of these relationships"
-    ];
+    return [];
   }
 }

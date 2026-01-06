@@ -1,4 +1,3 @@
-
 export enum GradeLevel {
   MiddleSchool = "Middle School (6-8)",
   HighSchool = "High School (9-10)",
@@ -15,6 +14,13 @@ export enum Subject {
   English = "English & Literature"
 }
 
+export type ChatMode = 'lite' | 'search' | 'complex';
+
+export interface GroundingLink {
+  uri: string;
+  title: string;
+}
+
 export interface User {
   name: string;
   email: string;
@@ -27,6 +33,8 @@ export interface Message {
   content: string;
   timestamp: Date;
   attachments?: string[]; // base64 strings
+  groundingLinks?: GroundingLink[];
+  isThinking?: boolean;
 }
 
 export interface ChatSession {
@@ -36,6 +44,7 @@ export interface ChatSession {
   createdAt: Date;
   grade: GradeLevel;
   subject: Subject;
+  mode: ChatMode;
 }
 
 export interface ImageGenerationConfig {
