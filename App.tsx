@@ -6,7 +6,7 @@ import LandingPage from './components/LandingPage';
 import Auth from './components/Auth';
 import QuotesBar from './components/QuotesBar';
 import RocketTransition from './components/RocketTransition';
-import { GradeLevel, Subject, Message, ChatSession, User, ImageGenerationConfig, ChatMode, GroundingLink } from './types';
+import { GradeLevel, Subject, Message, ChatSession, User, ChatMode, GroundingLink, ImageGenerationConfig } from './types';
 import { getStreamingTutorResponse, generateTutorImage, getVisualSuggestions } from './services/geminiService';
 
 const STORAGE_KEY = 'intellexa_history_v2';
@@ -45,20 +45,16 @@ const App: React.FC = () => {
   const [inputValue, setInputValue] = useState('');
   const [chatMode, setChatMode] = useState<ChatMode>('lite');
   const [isTyping, setIsTyping] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+
+  // Image Generation States
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [showVisualArchitect, setShowVisualArchitect] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   const [refiningImage, setRefiningImage] = useState<string | null>(null);
-  
+  const [visualConfig, setVisualConfig] = useState<ImageGenerationConfig>({ prompt: '', aspectRatio: '1:1' });
   const [visualSuggestions, setVisualSuggestions] = useState<string[]>([]);
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
-
-  const [visualConfig, setVisualConfig] = useState<ImageGenerationConfig>({
-    prompt: '',
-    aspectRatio: '1:1'
-  });
-
   const [debouncedVisualPrompt, setDebouncedVisualPrompt] = useState('');
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -138,7 +134,7 @@ const App: React.FC = () => {
       messages: [{
         id: 'welcome',
         role: 'assistant',
-        content: `LOGIC GATES: OPEN! Welcome back, ${user?.name || 'Friend'}! I'm so excited to help you today. I've got my pencils ready and my brain is fully charged. What shall we learn about today? I can help you with homework, explain a tricky topic, or even draw a cool picture for you!`,
+        content: `LOGIC GATES: OPEN! Welcome back, ${user?.name || 'Friend'}! I'm so excited to help you today. I've got my pencils ready and my brain is fully charged. What shall we learn about today? I can help you with homework, explain a tricky topic, or even draw a cool visual for you!`,
         timestamp: new Date()
       }],
       createdAt: new Date(),
@@ -157,8 +153,8 @@ const App: React.FC = () => {
       if (sessions.length === 0) handleNewChat();
       setTimeout(() => {
         setIsTransitioning(false);
-      }, 500); // Small buffer for the fade in
-    }, 1500); // Matches rocket animation length
+      }, 500); 
+    }, 1500); 
   };
 
   const sendMessage = async (text: string, image?: string) => {
@@ -220,7 +216,7 @@ const App: React.FC = () => {
       }
     } catch (error: any) {
       console.error(error);
-      setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: s.messages.map(msg => msg.id === assistantMsgId ? { ...msg, content: "Neural link timeout. Let's recalibrate the architecture and try again?" } : msg) } : s));
+      setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: s.messages.map(msg => msg.id === assistantMsgId ? { ...msg, content: "Neural link timeout. Let's recalibrate and try again?" } : msg) } : s));
     } finally {
       setIsTyping(false);
     }
@@ -240,9 +236,10 @@ const App: React.FC = () => {
   const handleGenerateVisual = async (configOverride?: Partial<ImageGenerationConfig>) => {
     if (!activeSessionId) return;
 
+    // Fixed: Neutral fallback prompt to avoid "educational-centric" images by default
     const finalConfig: ImageGenerationConfig = { 
       ...visualConfig, 
-      prompt: visualConfig.prompt || inputValue || "a high-fidelity study diagram",
+      prompt: visualConfig.prompt || inputValue || "a beautiful high-quality digital masterpiece",
       base64Source: refiningImage || undefined,
       ...configOverride 
     };
@@ -254,7 +251,7 @@ const App: React.FC = () => {
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: refiningImage ? `Polishing chat: ${finalConfig.prompt}` : `Creating visual: ${finalConfig.prompt}`,
+      content: refiningImage ? `Polishing: ${finalConfig.prompt}` : `Generating Visual: ${finalConfig.prompt}`,
       timestamp: new Date()
     };
     setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, userMsg] } : s));
@@ -264,7 +261,7 @@ const App: React.FC = () => {
       const assistantMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: refiningImage ? `Refinement complete! How does this look?` : `Visual study aid generated! Your diagram has been created.`,
+        content: refiningImage ? `Polished image ready!` : `I've synthesized the visual you requested!`,
         timestamp: new Date(),
         attachments: [imageUrl]
       };
@@ -273,7 +270,7 @@ const App: React.FC = () => {
       const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `Creation Failure: ${error.message}`,
+        content: `Synthesis Failure: ${error.message}`,
         timestamp: new Date()
       };
       setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, errorMsg] } : s));
@@ -303,7 +300,7 @@ const App: React.FC = () => {
     let actionPrompt = "";
     switch(actionType) {
       case 'mock-test': actionPrompt = "Initiate a quick practice test!"; break;
-      case 'flowchart': actionPrompt = "Create a visual flowchart of this concept."; break;
+      case 'flowchart': actionPrompt = "Create a detailed Mermaid flowchart of this concept."; break;
       case 'summary': actionPrompt = "Summarize this information clearly."; break;
       case 'problem-solver': actionPrompt = "Explain this problem step-by-step."; break;
     }
@@ -332,8 +329,8 @@ const App: React.FC = () => {
 
   const QUICK_ACTIONS = [
     { id: 'visual-render', label: 'VISUAL AID', icon: 'fa-wand-sparkles' },
+    { id: 'flowchart', label: 'DIAGRAM AID', icon: 'fa-diagram-project' },
     { id: 'mock-test', label: 'PRACTICE TEST', icon: 'fa-vial' },
-    { id: 'flowchart', label: 'CONCEPT MAP', icon: 'fa-diagram-project' },
     { id: 'summary', label: 'SUMMARY', icon: 'fa-book' }
   ];
 
@@ -400,10 +397,10 @@ const App: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="text-xl font-black text-white tracking-tight">
-                        {refiningImage ? 'Visual Refinement' : 'Study Image Generator'}
+                        {refiningImage ? 'Visual Refinement' : 'Creative Studio'}
                       </h3>
                       <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
-                        Study Buddy Forge
+                        Visual Synthesis Forge
                       </p>
                     </div>
                   </div>
@@ -424,11 +421,11 @@ const App: React.FC = () => {
                   )}
 
                   <div className="space-y-4">
-                    <label className="block text-[9px] font-black text-purple-500 uppercase tracking-widest">Image Description</label>
+                    <label className="block text-[9px] font-black text-purple-500 uppercase tracking-widest">Visual Prompt</label>
                     <textarea 
                       value={visualConfig.prompt}
                       onChange={(e) => setVisualConfig({...visualConfig, prompt: e.target.value})}
-                      placeholder={refiningImage ? "Describe changes..." : "Describe the study aid..."}
+                      placeholder={refiningImage ? "Describe refinements..." : "Describe the image precisely..."}
                       className="w-full h-32 p-4 rounded-xl border bg-zinc-900 border-white/5 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/30 font-medium resize-none text-sm"
                     />
                   </div>
@@ -444,8 +441,25 @@ const App: React.FC = () => {
                     </div>
                   )}
 
+                  {visualSuggestions.length > 0 && !refiningImage && (
+                    <div className="space-y-3">
+                      <label className="block text-[9px] font-black text-purple-500 uppercase tracking-widest">Synthesis Ideas</label>
+                      <div className="flex flex-wrap gap-2">
+                        {visualSuggestions.map((suggestion, i) => (
+                          <button 
+                            key={i} 
+                            onClick={() => setVisualConfig({...visualConfig, prompt: suggestion})}
+                            className="px-3 py-1.5 rounded-lg border border-white/5 bg-zinc-900/50 hover:border-purple-500/50 text-[10px] font-medium text-zinc-400 hover:text-white transition-all text-left"
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <button onClick={() => handleGenerateVisual()} disabled={!visualConfig.prompt.trim()} className="w-full py-4 bg-purple-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-xl hover:bg-purple-500 disabled:opacity-50">
-                    {refiningImage ? 'REFINE IMAGE' : 'GENERATE IMAGE'}
+                    {refiningImage ? 'REFINE NOW' : 'SYNTHESIZE VISUAL'}
                   </button>
                 </div>
               </div>
@@ -457,7 +471,7 @@ const App: React.FC = () => {
             <div className="max-w-4xl mx-auto pointer-events-auto">
               <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-1">
                 {QUICK_ACTIONS.map((action) => (
-                  <button key={action.id} onClick={() => handleAction(action.id as any)} disabled={isTyping} className="flex-shrink-0 flex items-center gap-3 px-5 py-2.5 rounded-xl bg-zinc-900/80 border-white/5 text-zinc-400 backdrop-blur-xl border text-[9px] font-black uppercase tracking-widest hover:border-blue-500 transition-all shadow-2xl disabled:opacity-30">
+                  <button key={action.id} onClick={() => handleAction(action.id as any)} disabled={isTyping || isGeneratingImage} className="flex-shrink-0 flex items-center gap-3 px-5 py-2.5 rounded-xl bg-zinc-900/80 border-white/5 text-zinc-400 backdrop-blur-xl border text-[9px] font-black uppercase tracking-widest hover:border-purple-500 transition-all shadow-2xl disabled:opacity-30">
                     <i className={`fas ${action.icon} text-purple-500`}></i>{action.label}
                   </button>
                 ))}
@@ -469,10 +483,10 @@ const App: React.FC = () => {
                     <button onClick={() => setPendingImage(null)} className="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-lg"><i className="fas fa-times"></i></button>
                   </div>
                 )}
-                <form onSubmit={handleSendMessage} className="flex items-center relative gap-1">
+                <form onSubmit={handleSendMessage} className="flex items-center relative gap-1 px-4">
                   <button type="button" onClick={() => fileInputRef.current?.click()} className="w-12 h-12 flex items-center justify-center text-zinc-500 hover:text-purple-400 transition-colors"><i className="fas fa-plus-circle text-xl"></i></button>
                   <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*" />
-                  <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Ask your study buddy anything..." className="flex-1 py-3.5 px-3 bg-transparent focus:outline-none text-white font-medium text-lg" />
+                  <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Ask Intellexa anything..." className="flex-1 py-3.5 px-3 bg-transparent focus:outline-none text-white font-medium text-lg" />
                   <div className="flex items-center gap-1">
                     <button type="button" onClick={toggleListening} className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${isListening ? 'bg-red-500/10 text-red-500 animate-pulse' : 'text-zinc-500'}`}><i className={`fas ${isListening ? 'fa-microphone-slash' : 'fa-microphone'} text-lg`}></i></button>
                     <button type="submit" disabled={isTyping || (!inputValue.trim() && !pendingImage)} className="w-12 h-12 rounded-2xl flex items-center justify-center bg-purple-600 text-white shadow-lg hover:bg-purple-500 disabled:opacity-20"><i className="fas fa-paper-plane"></i></button>

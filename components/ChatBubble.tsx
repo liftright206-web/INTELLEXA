@@ -47,6 +47,25 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onRefine }) => {
                 <span className="text-[10px] font-black uppercase tracking-[0.2em]">Synthesizing Architecture...</span>
               </div>
             )}
+            
+            {message.attachments && message.attachments.length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {message.attachments.map((img, idx) => (
+                  <div key={idx} className="relative group overflow-hidden rounded-xl border border-white/10 shadow-lg">
+                    <img src={img} className="max-w-full max-h-[300px] object-cover transition-transform group-hover:scale-105" />
+                    {!isUser && onRefine && (
+                      <button 
+                        onClick={() => onRefine(img)}
+                        className="absolute bottom-2 right-2 bg-purple-600 hover:bg-purple-500 text-white text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        Refine
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="prose prose-invert max-w-none">
               {renderContent(message.content)}
             </div>
@@ -64,19 +83,6 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onRefine }) => {
                 </div>
               </div>
             )}
-            
-            {message.attachments && message.attachments.length > 0 && (
-              <div className="mt-5 grid grid-cols-1 gap-4">
-                {message.attachments.map((img, idx) => (
-                  <div key={idx} className="relative group overflow-hidden rounded-2xl border border-white/10 shadow-2xl">
-                    <img src={img} alt="Visual Aid" className="w-full h-auto object-contain max-h-[500px]" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                      <button onClick={() => onRefine?.(img)} className="bg-purple-600 text-white px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl transform translate-y-4 group-hover:translate-y-0 transition-all">Refine Visual</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
           <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 mt-2 px-1">
             {isUser ? 'Operator' : 'Architect'} &bull; {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -87,5 +93,4 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onRefine }) => {
   );
 };
 
-// Fixed error: Added missing default export for ChatBubble
 export default ChatBubble;

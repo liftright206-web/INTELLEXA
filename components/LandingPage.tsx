@@ -35,12 +35,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
         </div>
         
         <h1 className="text-6xl md:text-8xl lg:text-[110px] font-black tracking-tighter mb-8 leading-[0.85] text-white">
-          BUILDING <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-400 to-fuchsia-400 drop-shadow-sm">SUCCESS.</span>
+          ARCHITECT <br />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-400 to-fuchsia-400 drop-shadow-sm">KNOWLEDGE.</span>
         </h1>
         
         <p className="max-w-xl text-zinc-400 text-lg md:text-xl mb-14 leading-relaxed font-medium">
-          Step into a sophisticated learning studio. Intellexa builds complex concepts into high-fidelity visual architectures through advanced AI synthesis.
+          Step into a sophisticated learning studio. Intellexa builds complex concepts into structural SVG architectures through advanced logic synthesis.
         </p>
 
         <button 
@@ -54,8 +54,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-32 w-full">
           {[
             { icon: 'fa-user-graduate', title: 'Logic Buddy', desc: 'Breaking complex problems into atomic architectural steps with total clarity.' },
-            { icon: 'fa-wand-magic-sparkles', title: 'Visual Artist', desc: 'Ask for a visual, and watch the forge render high-fidelity educational imagery.' },
-            { icon: 'fa-compass', title: 'Learning Path', desc: 'Directly linked to verified research repositories for absolute factual precision.' }
+            { icon: 'fa-project-diagram', title: 'Diagram Synthesis', desc: 'Instantly renders high-fidelity Mermaid diagrams to visualize concepts structurally.' },
+            { icon: 'fa-compass', title: 'Research Hub', desc: 'Directly linked to verified web sources for absolute factual precision in every session.' }
           ].map((item, i) => (
             <div key={i} className="group p-8 rounded-3xl glass-card text-left hover:border-purple-500/30 transition-all hover:translate-y-[-4px] duration-300">
               <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/10 flex items-center justify-center mb-6 text-purple-500 text-xl">
@@ -73,5 +73,4 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
   );
 };
 
-// Fixed error: Added missing default export for LandingPage
 export default LandingPage;

@@ -1,3 +1,4 @@
+
 export enum GradeLevel {
   MiddleSchool = "Middle School (6-8)",
   HighSchool = "High School (9-10)",
@@ -21,6 +22,12 @@ export interface GroundingLink {
   title: string;
 }
 
+export interface ImageGenerationConfig {
+  prompt: string;
+  aspectRatio?: "1:1" | "3:4" | "4:3" | "9:16" | "16:9";
+  base64Source?: string;
+}
+
 export interface User {
   name: string;
   email: string;
@@ -32,7 +39,7 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  attachments?: string[]; // base64 strings
+  attachments?: string[];
   groundingLinks?: GroundingLink[];
   isThinking?: boolean;
 }
@@ -45,10 +52,4 @@ export interface ChatSession {
   grade: GradeLevel;
   subject: Subject;
   mode: ChatMode;
-}
-
-export interface ImageGenerationConfig {
-  prompt: string;
-  aspectRatio: "1:1" | "3:4" | "4:3" | "9:16" | "16:9";
-  base64Source?: string; // For editing existing images
 }
