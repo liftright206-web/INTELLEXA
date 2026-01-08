@@ -35,7 +35,10 @@ export async function* getStreamingTutorResponse(
   image?: string
 ) {
   const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("API Key is missing");
+  if (!apiKey) {
+    console.error("Intellexa Error: API_KEY is missing. Please add it to your Replit Secrets (Environment Variables).");
+    throw new Error("Neural Link Offline: Please check your environment configuration.");
+  }
 
   const ai = new GoogleGenAI({ apiKey });
   
@@ -103,7 +106,7 @@ export async function* getStreamingTutorResponse(
 
 export async function generateTutorImage(config: ImageGenerationConfig): Promise<string> {
   const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("API Key is missing.");
+  if (!apiKey) throw new Error("API Key missing in environment.");
 
   const ai = new GoogleGenAI({ apiKey });
   const modelName = 'gemini-2.5-flash-image';
@@ -116,10 +119,8 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
         mimeType: 'image/png'
       }
     });
-    // Literal adherence for edits
     parts.push({ text: `Modify this image exactly according to these instructions: ${config.prompt}. Maintain high quality and literal adherence to the request.` });
   } else {
-    // Literal adherence for generation
     parts.push({ text: `${config.prompt}. Ensure high aesthetic quality, vivid detail, and strict literal adherence to every aspect of the prompt without adding educational or academic context unless specifically asked for.` });
   }
 

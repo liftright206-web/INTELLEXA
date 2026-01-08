@@ -216,7 +216,10 @@ const App: React.FC = () => {
       }
     } catch (error: any) {
       console.error(error);
-      setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: s.messages.map(msg => msg.id === assistantMsgId ? { ...msg, content: "Neural link timeout. Let's recalibrate and try again?" } : msg) } : s));
+      const errorMessage = error.message.includes("Neural Link Offline") 
+        ? "Neural Link Offline: Please add your API_KEY to the Replit Secrets panel."
+        : "Communication breakdown. Let's try to re-establish the connection?";
+      setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: s.messages.map(msg => msg.id === assistantMsgId ? { ...msg, content: errorMessage, isThinking: false } : msg) } : s));
     } finally {
       setIsTyping(false);
     }
@@ -236,7 +239,6 @@ const App: React.FC = () => {
   const handleGenerateVisual = async (configOverride?: Partial<ImageGenerationConfig>) => {
     if (!activeSessionId) return;
 
-    // Fixed: Neutral fallback prompt to avoid "educational-centric" images by default
     const finalConfig: ImageGenerationConfig = { 
       ...visualConfig, 
       prompt: visualConfig.prompt || inputValue || "a beautiful high-quality digital masterpiece",
@@ -348,17 +350,17 @@ const App: React.FC = () => {
         onLogout={handleLogout}
       >
         <div className="flex flex-col h-full relative">
-          {/* Mode Selector */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 flex bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-1 gap-1 shadow-lg">
+          {/* Mode Selector - Responsive adjustments for Replit split view */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 flex bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-1 gap-1 shadow-lg max-w-[95%] overflow-x-auto no-scrollbar">
             {[
               { id: 'lite', icon: 'bolt', label: 'Quick' },
               { id: 'search', icon: 'globe', label: 'Research' },
-              { id: 'complex', icon: 'brain', label: 'Deep Study' }
+              { id: 'complex', icon: 'brain', label: 'Deep' }
             ].map((mode) => (
               <button
                 key={mode.id}
                 onClick={() => setChatMode(mode.id as ChatMode)}
-                className={`px-5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${chatMode === mode.id ? 'bg-purple-600 text-white shadow-xl' : 'text-zinc-400 hover:text-zinc-200'}`}
+                className={`px-4 md:px-5 py-1.5 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap ${chatMode === mode.id ? 'bg-purple-600 text-white shadow-xl' : 'text-zinc-400 hover:text-zinc-200'}`}
               >
                 <i className={`fas fa-${mode.icon}`}></i>
                 {mode.label}
@@ -366,8 +368,8 @@ const App: React.FC = () => {
             ))}
           </div>
 
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 custom-scrollbar">
-            <div className="max-w-4xl mx-auto pb-48">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-10 space-y-8 custom-scrollbar">
+            <div className="max-w-4xl mx-auto pb-56">
               {messages.map((msg) => <ChatBubble key={msg.id} message={msg} onRefine={handleRefine} />)}
               {(isTyping || isGeneratingImage) && (
                 <div className="flex justify-start mb-8 animate-pulse">
@@ -388,15 +390,15 @@ const App: React.FC = () => {
 
           {/* Visual Architect Modal */}
           {showVisualArchitect && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in">
-              <div className="w-full max-w-2xl glass-card bg-[#05010d] rounded-3xl p-8 shadow-2xl border-white/5 animate-in zoom-in-95 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-black/80 backdrop-blur-md animate-in fade-in">
+              <div className="w-full max-w-2xl glass-card bg-[#05010d] rounded-3xl p-6 md:p-8 shadow-2xl border-white/5 animate-in zoom-in-95 max-h-[90vh] overflow-y-auto custom-scrollbar">
                 <div className="flex items-center justify-between mb-8">
                   <div className="flex items-center gap-4">
                     <div className="w-11 h-11 rounded-xl bg-purple-600 flex items-center justify-center text-white shadow-lg">
                       <i className="fas fa-wand-magic-sparkles text-lg"></i>
                     </div>
                     <div>
-                      <h3 className="text-xl font-black text-white tracking-tight">
+                      <h3 className="text-lg md:text-xl font-black text-white tracking-tight">
                         {refiningImage ? 'Visual Refinement' : 'Creative Studio'}
                       </h3>
                       <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
@@ -441,23 +443,6 @@ const App: React.FC = () => {
                     </div>
                   )}
 
-                  {visualSuggestions.length > 0 && !refiningImage && (
-                    <div className="space-y-3">
-                      <label className="block text-[9px] font-black text-purple-500 uppercase tracking-widest">Synthesis Ideas</label>
-                      <div className="flex flex-wrap gap-2">
-                        {visualSuggestions.map((suggestion, i) => (
-                          <button 
-                            key={i} 
-                            onClick={() => setVisualConfig({...visualConfig, prompt: suggestion})}
-                            className="px-3 py-1.5 rounded-lg border border-white/5 bg-zinc-900/50 hover:border-purple-500/50 text-[10px] font-medium text-zinc-400 hover:text-white transition-all text-left"
-                          >
-                            {suggestion}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
                   <button onClick={() => handleGenerateVisual()} disabled={!visualConfig.prompt.trim()} className="w-full py-4 bg-purple-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-xl hover:bg-purple-500 disabled:opacity-50">
                     {refiningImage ? 'REFINE NOW' : 'SYNTHESIZE VISUAL'}
                   </button>
@@ -467,11 +452,11 @@ const App: React.FC = () => {
           )}
 
           {/* Study Console Bar */}
-          <div className="absolute bottom-8 left-0 right-0 p-6 z-50 pointer-events-none">
+          <div className="absolute bottom-10 left-0 right-0 p-4 md:p-6 z-50 pointer-events-none">
             <div className="max-w-4xl mx-auto pointer-events-auto">
               <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-1">
                 {QUICK_ACTIONS.map((action) => (
-                  <button key={action.id} onClick={() => handleAction(action.id as any)} disabled={isTyping || isGeneratingImage} className="flex-shrink-0 flex items-center gap-3 px-5 py-2.5 rounded-xl bg-zinc-900/80 border-white/5 text-zinc-400 backdrop-blur-xl border text-[9px] font-black uppercase tracking-widest hover:border-purple-500 transition-all shadow-2xl disabled:opacity-30">
+                  <button key={action.id} onClick={() => handleAction(action.id as any)} disabled={isTyping || isGeneratingImage} className="flex-shrink-0 flex items-center gap-3 px-4 md:px-5 py-2.5 rounded-xl bg-zinc-900/80 border-white/5 text-zinc-400 backdrop-blur-xl border text-[9px] font-black uppercase tracking-widest hover:border-purple-500 transition-all shadow-2xl disabled:opacity-30">
                     <i className={`fas ${action.icon} text-purple-500`}></i>{action.label}
                   </button>
                 ))}
@@ -484,12 +469,12 @@ const App: React.FC = () => {
                   </div>
                 )}
                 <form onSubmit={handleSendMessage} className="flex items-center relative gap-1 px-4">
-                  <button type="button" onClick={() => fileInputRef.current?.click()} className="w-12 h-12 flex items-center justify-center text-zinc-500 hover:text-purple-400 transition-colors"><i className="fas fa-plus-circle text-xl"></i></button>
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center text-zinc-500 hover:text-purple-400 transition-colors"><i className="fas fa-plus-circle text-xl"></i></button>
                   <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*" />
-                  <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Ask Intellexa anything..." className="flex-1 py-3.5 px-3 bg-transparent focus:outline-none text-white font-medium text-lg" />
+                  <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Ask Intellexa..." className="flex-1 py-3.5 px-3 bg-transparent focus:outline-none text-white font-medium text-base md:text-lg" />
                   <div className="flex items-center gap-1">
-                    <button type="button" onClick={toggleListening} className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${isListening ? 'bg-red-500/10 text-red-500 animate-pulse' : 'text-zinc-500'}`}><i className={`fas ${isListening ? 'fa-microphone-slash' : 'fa-microphone'} text-lg`}></i></button>
-                    <button type="submit" disabled={isTyping || (!inputValue.trim() && !pendingImage)} className="w-12 h-12 rounded-2xl flex items-center justify-center bg-purple-600 text-white shadow-lg hover:bg-purple-500 disabled:opacity-20"><i className="fas fa-paper-plane"></i></button>
+                    <button type="button" onClick={toggleListening} className={`w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center transition-all ${isListening ? 'bg-red-500/10 text-red-500 animate-pulse' : 'text-zinc-500'}`}><i className={`fas ${isListening ? 'fa-microphone-slash' : 'fa-microphone'} text-lg`}></i></button>
+                    <button type="submit" disabled={isTyping || (!inputValue.trim() && !pendingImage)} className="w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center bg-purple-600 text-white shadow-lg hover:bg-purple-500 disabled:opacity-20"><i className="fas fa-paper-plane"></i></button>
                   </div>
                 </form>
               </div>
