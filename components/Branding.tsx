@@ -11,31 +11,35 @@ export const IntellexaIcon: React.FC<{ className?: string }> = ({ className = "w
     <defs>
       <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stopColor="#7c3aed" />
-        <stop offset="50%" stopColor="#a855f7" />
-        <stop offset="100%" stopColor="#e879f9" />
+        <stop offset="100%" stopColor="#4338ca" />
       </linearGradient>
     </defs>
-    {/* Stylized Node-X Logo */}
-    <circle cx="50" cy="50" r="8" stroke="url(#logoGradient)" strokeWidth="4" />
     
-    <line x1="20" y1="20" x2="42" y2="42" stroke="url(#logoGradient)" strokeWidth="6" strokeLinecap="round" />
-    <line x1="80" y1="20" x2="58" y2="42" stroke="url(#logoGradient)" strokeWidth="6" strokeLinecap="round" />
-    <line x1="20" y1="80" x2="42" y2="58" stroke="url(#logoGradient)" strokeWidth="6" strokeLinecap="round" />
-    <line x1="80" y1="80" x2="58" y2="58" stroke="url(#logoGradient)" strokeWidth="6" strokeLinecap="round" />
-    
-    <circle cx="20" cy="20" r="6" fill="url(#logoGradient)" />
-    <circle cx="80" cy="20" r="6" fill="url(#logoGradient)" />
-    <circle cx="20" cy="80" r="6" fill="url(#logoGradient)" />
-    <circle cx="80" cy="80" r="6" fill="url(#logoGradient)" />
-    <circle cx="41" cy="49" r="5" fill="url(#logoGradient)" />
-    <circle cx="59" cy="49" r="5" fill="url(#logoGradient)" />
+    {/* Stylized 'x' as a node constellation in purple */}
+    <g stroke="url(#logoGradient)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+      {/* Outer connections */}
+      <path d="M25 25 L75 75" />
+      <path d="M75 25 L25 75" />
+      <path d="M25 25 L75 25 L75 75 L25 75 Z" opacity="0.3" strokeWidth="2" />
+      
+      {/* Nodes */}
+      <circle cx="25" cy="25" r="5" fill="white" strokeWidth="3" />
+      <circle cx="75" cy="25" r="5" fill="white" strokeWidth="3" />
+      <circle cx="25" cy="75" r="5" fill="white" strokeWidth="3" />
+      <circle cx="75" cy="75" r="5" fill="white" strokeWidth="3" />
+      
+      {/* Center Node */}
+      <circle cx="50" cy="50" r="8" fill="url(#logoGradient)" stroke="white" strokeWidth="2">
+        <animate attributeName="r" values="7;9;7" dur="2s" repeatCount="indefinite" />
+      </circle>
+    </g>
   </svg>
 );
 
 export const IntellexaWordmark: React.FC<{ className?: string }> = ({ className = "h-8" }) => (
-  <div className={`flex items-center gap-0.5 ${className}`}>
-    <span className="text-2xl font-bold tracking-tight text-white">intelle</span>
-    <IntellexaIcon className="w-6 h-6 mt-1" />
-    <span className="text-2xl font-bold tracking-tight text-white">a</span>
+  <div className={`flex items-center gap-0 ${className}`}>
+    <span className="text-3xl font-bold tracking-tight text-white lowercase" style={{ fontFamily: 'Inter, sans-serif' }}>intelle</span>
+    <IntellexaIcon className="w-8 h-8 mx-[-2px] mb-[-4px]" />
+    <span className="text-3xl font-bold tracking-tight text-white lowercase" style={{ fontFamily: 'Inter, sans-serif' }}>a</span>
   </div>
 );

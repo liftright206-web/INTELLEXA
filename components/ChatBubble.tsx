@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Message } from '../types';
 import MermaidDiagram from './MermaidDiagram';
@@ -5,11 +6,10 @@ import { IntellexaIcon } from './Branding';
 
 interface ChatBubbleProps {
   message: Message;
-  theme: 'dark' | 'light';
   onRefine?: (image: string) => void;
 }
 
-const ChatBubble: React.FC<ChatBubbleProps> = ({ message, theme, onRefine }) => {
+const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onRefine }) => {
   const isUser = message.role === 'user';
 
   const renderContent = (content: string) => {
@@ -22,52 +22,42 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message, theme, onRefine }) => 
     });
   };
 
-  const isArchitected = !isUser && message.content.includes("visual architected");
-
   return (
-    <div className={`flex w-full mb-10 ${isUser ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-4 duration-500`}>
-      <div className={`flex max-w-[90%] md:max-w-[75%] ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start gap-5`}>
-        {/* Avatar Area */}
-        <div className="flex-shrink-0 flex flex-col items-center">
-          <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg relative group ${
+    <div className={`flex w-full mb-8 ${isUser ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-3 duration-500`}>
+      <div className={`flex max-w-[95%] md:max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start gap-4`}>
+        <div className="flex-shrink-0 mt-1">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 transition-all ${
             isUser 
-            ? theme === 'dark' ? 'bg-gradient-to-br from-zinc-800 to-zinc-900 border border-zinc-700' : 'bg-white border border-purple-200'
-            : theme === 'dark' ? 'bg-zinc-950 border border-purple-500/30 shadow-purple-500/20' : 'bg-purple-600 border border-purple-500 shadow-purple-200'
+            ? 'bg-zinc-800 border-zinc-700' 
+            : 'bg-gradient-to-br from-purple-600 to-indigo-800 border-purple-500 shadow-lg shadow-purple-500/20'
           }`}>
-            {isUser ? (
-              <i className={`fas fa-user ${theme === 'dark' ? 'text-zinc-400' : 'text-purple-600'} text-sm`}></i>
-            ) : (
-              <div className="p-1.5 relative z-10">
-                <IntellexaIcon className="w-full h-full" />
-              </div>
-            )}
+            {isUser ? <i className="fas fa-user text-zinc-400"></i> : <IntellexaIcon className="w-6 h-6" />}
           </div>
         </div>
 
-        {/* Bubble Area */}
         <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
-          <div className={`relative px-6 py-5 rounded-[28px] text-[15px] md:text-base leading-relaxed font-medium transition-all ${
+          <div className={`relative px-6 py-4 rounded-[24px] text-[15px] leading-relaxed transition-all ${
             isUser 
-            ? 'bg-gradient-to-br from-purple-700 via-purple-800 to-indigo-950 text-white rounded-tr-none border border-purple-400/20' 
-            : `glass-card ${theme === 'dark' ? 'text-zinc-100' : 'text-zinc-800'} rounded-tl-none border-purple-500/10 shadow-md`
+            ? 'bg-zinc-900 border border-white/5 text-zinc-100 rounded-tr-none'
+            : 'glass-card text-white rounded-tl-none border-purple-500/20'
           }`}>
             {message.isThinking && !message.content && (
-              <div className="flex items-center gap-2 mb-2 text-purple-400">
-                <i className="fas fa-brain animate-pulse"></i>
-                <span className="text-[10px] font-black uppercase tracking-widest">Architecting complex thought...</span>
+              <div className="flex items-center gap-3 mb-3 text-purple-400">
+                <i className="fas fa-microchip animate-pulse"></i>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Synthesizing Architecture...</span>
               </div>
             )}
-            <div className={`prose ${theme === 'dark' ? 'prose-invert' : ''} max-w-none`}>
+            <div className="prose prose-invert max-w-none">
               {renderContent(message.content)}
             </div>
             
             {message.groundingLinks && message.groundingLinks.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-purple-500/10">
-                <p className="text-[10px] font-black uppercase tracking-widest text-purple-500 mb-2">Sources from Google Search:</p>
+              <div className="mt-5 pt-4 border-t border-white/10">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-400 mb-3">Verification Nodes:</p>
                 <div className="flex flex-wrap gap-2">
                   {message.groundingLinks.map((link, idx) => (
-                    <a key={idx} href={link.uri} target="_blank" rel="noopener noreferrer" className={`px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 text-zinc-400 hover:text-white' : 'bg-purple-50 border-purple-100 text-purple-700 hover:bg-purple-100'}`}>
-                      <i className="fas fa-external-link-alt mr-2"></i>
+                    <a key={idx} href={link.uri} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/5 bg-zinc-900/50 hover:border-purple-500/50 transition-all flex items-center gap-2">
+                      <i className="fas fa-link opacity-50 text-purple-400"></i>
                       {link.title || 'Source'}
                     </a>
                   ))}
@@ -78,18 +68,18 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message, theme, onRefine }) => 
             {message.attachments && message.attachments.length > 0 && (
               <div className="mt-5 grid grid-cols-1 gap-4">
                 {message.attachments.map((img, idx) => (
-                  <div key={idx} className="relative group overflow-hidden rounded-[20px] border border-purple-500/20 shadow-xl">
-                    <img src={img} alt="attachment" className="w-full h-auto object-contain transition-transform duration-700 group-hover:scale-110" />
-                    <div className="absolute bottom-4 right-4 z-20 flex gap-2">
-                      <button onClick={() => onRefine?.(img)} className="bg-purple-600 text-white h-10 px-5 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-purple-700 shadow-xl"><i className="fas fa-wand-magic-sparkles mr-2"></i> Edit / Refine</button>
+                  <div key={idx} className="relative group overflow-hidden rounded-2xl border border-white/10 shadow-2xl">
+                    <img src={img} alt="Visual Aid" className="w-full h-auto object-contain max-h-[500px]" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                      <button onClick={() => onRefine?.(img)} className="bg-purple-600 text-white px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl transform translate-y-4 group-hover:translate-y-0 transition-all">Refine Visual</button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-          <span className={`text-[9px] ${theme === 'dark' ? 'text-zinc-600' : 'text-zinc-400'} mt-2.5 font-black uppercase tracking-[0.2em] px-2`}>
-            {isUser ? 'Client' : 'Intelligence'} &bull; {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 mt-2 px-1">
+            {isUser ? 'Operator' : 'Architect'} &bull; {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
       </div>
@@ -97,4 +87,5 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message, theme, onRefine }) => 
   );
 };
 
+// Fixed error: Added missing default export for ChatBubble
 export default ChatBubble;

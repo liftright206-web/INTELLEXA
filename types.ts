@@ -50,9 +50,5 @@ export interface ChatSession {
 export interface ImageGenerationConfig {
   prompt: string;
   aspectRatio: "1:1" | "3:4" | "4:3" | "9:16" | "16:9";
-  style?: string;
-  cameraAngle?: string;
-  lighting?: string;
-  texture?: string;
-  base64Source?: string;
+  base64Source?: string; // For editing existing images
 }

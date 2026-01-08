@@ -1,28 +1,32 @@
+
 import { GoogleGenAI, GenerateContentResponse, Type, Modality } from "@google/genai";
 import { Message, ImageGenerationConfig, ChatMode, GroundingLink } from "../types";
 
-const SYSTEM_INSTRUCTION = `You are Intellexa, an expert AI architect and education specialist.
-Your task is to function as a universal virtual tutor, study partner, and project assistant.
+const SYSTEM_INSTRUCTION = `You are Intellexa, a brilliant, witty, and friendly AI Architect and Education Specialist. 
+Your mission is to architect knowledge using simple, clear, and easy-to-understand English.
+
+Persona Guidelines:
+- PERSONALITY: Charismatic and helpful. You are like a brilliant older sibling or a friendly tutor who makes everything easy.
+- LANGUAGE: Use simple words. Avoid big academic jargon. If you use a complex word, explain it simply right away.
+- SENTENCE STRUCTURE: Keep sentences short and direct. Avoid long, confusing paragraphs.
+- HUMOR: Use fun, simple jokes and architect puns. (e.g., "Let's build this answer together!")
+- ENGAGEMENT: Use phrases like "Neural pathways engaged," "Let's chat about this thought," or "Logic gates opening!"
 
 Core Objectives:
-1. Explain academic concepts in clear, accessible language tailored to the user's demonstrated level.
-2. Provide step-by-step solutions for numerical and logical problems.
-3. Assist in homework, assignments, projects, and exam preparation across all levels of education.
-4. Generate summaries, notes, conclusions, and examples.
-5. **VISUAL ARCHITECTURE**: 
-   - Use Mermaid.js for flowcharts, logic maps, and conceptual diagrams (always use code blocks labeled 'mermaid').
-   - You can trigger image generation or editing for high-fidelity educational visuals.
+1. Explain academic concepts using plain, everyday English that a middle schooler would easily understand.
+2. Provide step-by-step solutions that are broken down into the simplest possible parts.
+3. Generate interactive Mermaid.js diagrams for visual learners.
+4. Use real-life, simple analogies to explain hard ideas.
 
-Teaching Style:
-- Professional, academic, patient, and motivating.
-- Use real-life examples, analogies, and text-based diagrams.
-- Break complex topics into clear points, tables, or numbered steps.
+CRITICAL FORMATTING RULE:
+- DO NOT use Markdown bolding (double asterisks) or italics (single asterisks).
+- Use ALL CAPS for headers or labels if necessary.
+- Use plain text, numbering, and spacing for structure.
 
 Output Format:
-- Use clear headings and structured sections.
-- Use bullet points or numbered steps for readability.
-- Use mermaid blocks for structural diagrams when helpful.
-- End with a "Quick Revision Tip".`;
+- Use clear plain-text headings in ALL CAPS.
+- Use mermaid blocks for structural diagrams.
+- End with a "Witty Revision Nugget" (a very short, simple tip delivered with a smile).`;
 
 export async function* getStreamingTutorResponse(
   prompt: string,
@@ -35,10 +39,10 @@ export async function* getStreamingTutorResponse(
 
   const ai = new GoogleGenAI({ apiKey });
   
-  // Model Selection based on Mode and Input
-  let modelName = 'gemini-2.5-flash-lite-latest'; // Default Fast Mode
+  // Model selection logic based on requirements
+  let modelName = 'gemini-flash-lite-latest'; // Lite Mode
   if (mode === 'search') modelName = 'gemini-3-flash-preview';
-  if (mode === 'complex' || image) modelName = 'gemini-3-pro-preview';
+  if (mode === 'complex' || image) modelName = 'gemini-3-pro-preview'; 
 
   const contents: any[] = [];
   
@@ -62,7 +66,7 @@ export async function* getStreamingTutorResponse(
 
   const config: any = {
     systemInstruction: SYSTEM_INSTRUCTION,
-    temperature: 0.7,
+    temperature: 0.7, // Lower temperature slightly for more direct, simple answers
   };
 
   if (mode === 'search') {
@@ -70,7 +74,7 @@ export async function* getStreamingTutorResponse(
   }
 
   if (mode === 'complex' && !image) {
-    // Thinking mode enabled for complex text queries
+    // Enable thinking for the most complex text queries
     config.thinkingConfig = { thinkingBudget: 32768 };
   }
 
@@ -84,7 +88,7 @@ export async function* getStreamingTutorResponse(
     const text = chunk.text || "";
     const links: GroundingLink[] = [];
     
-    // Extract grounding links if available
+    // Extract grounding chunks for search mode
     if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) {
       chunk.candidates[0].groundingMetadata.groundingChunks.forEach((chunk: any) => {
         if (chunk.web) {
@@ -105,14 +109,12 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
   if (!apiKey) throw new Error("Configuration Error: API Key is missing.");
 
   const ai = new GoogleGenAI({ apiKey });
-  
-  // Standardizing on Gemini 2.5 Flash Image for all tasks
   const modelName = 'gemini-2.5-flash-image';
 
   const parts: any[] = [];
 
   if (config.base64Source) {
-    // IMAGE EDITING MODE
+    // IMAGE EDITING MODE - Literal adherence to prompt
     parts.push({
       inlineData: {
         data: config.base64Source.split(',')[1] || config.base64Source,
@@ -120,24 +122,18 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
       }
     });
     parts.push({
-      text: `Perform high-fidelity editing on this image based on the following request: ${config.prompt}. 
-      Common requests include adding filters, removing background objects, or adding elements. 
-      Maintain educational clarity and professional aesthetic.`
+      text: `Modify this image exactly as requested: ${config.prompt}. Focus on accuracy and maintaining the high-quality resolution of the output.`
     });
   } else {
-    // GENERATION MODE
-    const prompt = `Architect a professional educational illustration or 3D render: ${config.prompt}.
-    The visual should be medically or scientifically accurate, highly detailed, and suitable for academic presentation. 
-    **IMPORTANT**: Do not include any text labels unless specifically requested.`;
-    parts.push({ text: prompt });
+    // GENERATION MODE - Adheres to prompt directly, ensuring high fidelity
+    const promptText = `Create a professional, high-fidelity visual based on this prompt: ${config.prompt}. Ensure the generation is detailed, accurately represents all requested elements, and maintains high aesthetic standards. Avoid adding educational labels or academic context unless specifically mentioned.`;
+    parts.push({ text: promptText });
   }
 
   try {
     const response = await ai.models.generateContent({
       model: modelName,
-      contents: [{
-        parts: parts
-      }],
+      contents: { parts: parts },
       config: {
         imageConfig: {
           aspectRatio: config.aspectRatio
@@ -153,16 +149,11 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
       }
     }
 
-    if (!imageUrl) {
-      throw new Error("The synthesis engine returned an empty output.");
-    }
-
+    if (!imageUrl) throw new Error("The synthesis engine returned an empty output.");
     return imageUrl;
   } catch (error: any) {
     const errorMsg = error.message || "";
-    if (errorMsg.toLowerCase().includes("safety")) {
-      throw new Error("Architectural Breach: Safety filter triggered.");
-    }
+    if (errorMsg.toLowerCase().includes("safety")) throw new Error("Architectural Breach: Safety filter triggered.");
     throw new Error(error.message || "Synthesis Engine Failure.");
   }
 }
@@ -174,23 +165,22 @@ export async function getVisualSuggestions(history: Message[], currentPrompt?: s
   const ai = new GoogleGenAI({ apiKey });
   const context = history.slice(-6).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
   
-  const prompt = `Based on this educational chat history ${currentPrompt ? 'and the user\'s current draft' : ''}, suggest 3 highly specific educational visual prompts for an AI architect. 
-  History:
-  ${context}
+  const promptText = `Based on the conversation history and the current user input, suggest 3 creative visual prompts that would enhance the experience.
+  Context: ${context}
   ${currentPrompt ? `Current User Draft: "${currentPrompt}"` : ""}
-  Provide exactly 3 short, descriptive prompts.`;
+  The prompts should be diverse and can range from scientific to artistic or realistic. Provide exactly 3 short, descriptive prompts. Do not use markdown.`;
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: { parts: [{ text: promptText }] },
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
           items: { type: Type.STRING }
         },
-        systemInstruction: "You are a creative director for educational content."
+        systemInstruction: "You are an expert visual prompt engineer. Your goal is to suggest highly effective, accurate, and creative image generation prompts. Never use markdown symbols."
       }
     });
     

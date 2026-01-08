@@ -8,8 +8,6 @@ interface LayoutProps {
   sessions: ChatSession[];
   activeSessionId: string;
   user: User | null;
-  theme: 'dark' | 'light';
-  onToggleTheme: () => void;
   onSessionSelect: (id: string) => void;
   onNewChat: () => void;
   onDeleteSession: (id: string) => void;
@@ -23,13 +21,12 @@ const Layout: React.FC<LayoutProps> = ({
   sessions,
   activeSessionId,
   user,
-  theme,
   onSessionSelect,
   onNewChat,
   onDeleteSession,
   onReset,
   onGoHome,
-  onLogout
+  onLogout,
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showUserInfo, setShowUserInfo] = useState(false);
@@ -37,7 +34,6 @@ const Layout: React.FC<LayoutProps> = ({
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
-  // Close popover when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userInfoRef.current && !userInfoRef.current.contains(event.target as Node)) {
@@ -50,184 +46,136 @@ const Layout: React.FC<LayoutProps> = ({
 
   const SidebarContent = () => (
     <>
-      <div className={`p-8 border-b ${theme === 'dark' ? 'border-purple-900/10' : 'border-purple-200/20'} flex items-center justify-between`}>
+      <div className="p-8 flex items-center justify-between">
         <div className="flex flex-col cursor-pointer" onClick={onGoHome}>
-          <IntellexaWordmark className="scale-105" />
-          <p className={`text-[9px] ${theme === 'dark' ? 'text-purple-500/80' : 'text-purple-600/60'} font-black uppercase tracking-[0.4em] mt-2 ml-1`}>Your Study Buddy</p>
+          <IntellexaWordmark />
+          <p className="text-[10px] text-purple-400/80 font-black uppercase tracking-[0.3em] mt-2 ml-1">Your Study Buddy</p>
         </div>
-        <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-purple-400 hover:text-white p-2">
+        <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-purple-400 p-2">
           <i className="fas fa-times text-xl"></i>
         </button>
       </div>
 
-      <div className="p-6">
+      <div className="px-6 pb-6">
         <button 
           onClick={() => {
             onNewChat();
             setIsSidebarOpen(false);
           }}
-          className="w-full py-4 px-5 bg-gradient-to-r from-purple-600 to-indigo-700 hover:shadow-[0_8px_20px_rgba(124,58,237,0.3)] text-white rounded-[18px] text-xs font-black flex items-center justify-center gap-3 transition-all active:scale-[0.97] group"
+          className="w-full py-4 px-5 bg-gradient-to-r from-purple-600 to-indigo-800 hover:from-purple-500 hover:to-indigo-700 text-white rounded-2xl text-[11px] font-black flex items-center justify-center gap-3 transition-all active:scale-[0.97] shadow-xl shadow-purple-900/20 group"
         >
-          <i className="fas fa-message text-[10px] group-hover:rotate-12 transition-transform"></i>
-          CHAT
+          <i className="fas fa-plus text-[10px]"></i>
+          NEW CHAT
         </button>
       </div>
 
-      <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto custom-scrollbar">
-        <p className={`text-[10px] font-black ${theme === 'dark' ? 'text-zinc-700' : 'text-zinc-500/60'} uppercase tracking-widest px-4 mb-4 mt-2 flex items-center gap-2`}>
-          <span className="w-1 h-1 bg-purple-500 rounded-full"></span>
-          Workspace History
-        </p>
+      <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
+        <div className="px-4 mb-4 flex items-center justify-between">
+           <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Historical Nodes</p>
+           <button onClick={onReset} title="Reset Workspace" className="text-[10px] text-red-400/50 hover:text-red-400 transition-colors uppercase font-black">Reset</button>
+        </div>
         {sessions.length === 0 ? (
-          <div className="px-3 py-10 text-center opacity-40">
-            <i className={`fas fa-folder-open mb-3 text-2xl block ${theme === 'dark' ? 'text-purple-900' : 'text-purple-300'}`}></i>
-            <p className="text-[10px] uppercase font-bold tracking-widest">Workspace is empty</p>
+          <div className="px-3 py-10 text-center opacity-30">
+            <i className="fas fa-cube mb-3 text-2xl block text-purple-500"></i>
+            <p className="text-[10px] uppercase font-bold tracking-widest">Workspace Empty</p>
           </div>
         ) : (
           sessions.map((session) => (
             <div 
               key={session.id}
-              className={`group relative flex items-center gap-3 px-4 py-4 rounded-2xl text-sm transition-all cursor-pointer border ${
+              className={`group relative flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm transition-all cursor-pointer border ${
                 activeSessionId === session.id 
-                ? theme === 'dark' ? 'bg-purple-600/10 text-purple-500 border-purple-500/30' : 'bg-purple-100/40 text-purple-700 border-purple-200' 
-                : theme === 'dark' ? 'text-zinc-500 hover:bg-white/5 border-transparent' : 'text-zinc-500 hover:bg-white/50 border-transparent'
+                ? 'bg-white/5 text-purple-400 border border-purple-500/20 shadow-lg' 
+                : 'text-zinc-500 border-transparent hover:bg-white/5'
               }`}
               onClick={() => {
                 onSessionSelect(session.id);
                 setIsSidebarOpen(false);
               }}
             >
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-[10px] ${activeSessionId === session.id ? 'bg-purple-600 text-white shadow-lg' : theme === 'dark' ? 'bg-zinc-900 text-zinc-600 group-hover:bg-purple-900 group-hover:text-purple-200' : 'bg-white border border-purple-100 text-purple-400 group-hover:bg-purple-50'} transition-all`}>
-                <i className="fas fa-cube"></i>
-              </div>
-              <span className={`flex-1 truncate font-bold ${activeSessionId === session.id ? (theme === 'dark' ? 'text-purple-500' : 'text-purple-800') : ''}`}>
-                {session.title || "Untitled Session"}
+              <i className={`fas fa-terminal text-xs ${activeSessionId === session.id ? 'text-purple-500' : 'text-zinc-600'}`}></i>
+              <span className="flex-1 truncate font-bold text-xs">
+                {session.title || "Untitled Project"}
               </span>
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
                   onDeleteSession(session.id);
                 }}
-                className="opacity-0 group-hover:opacity-100 p-2 hover:text-red-500 transition-all"
+                className="opacity-0 group-hover:opacity-100 p-1.5 text-zinc-500 hover:text-red-500 transition-all"
               >
-                <i className="fas fa-times text-xs"></i>
+                <i className="fas fa-trash-alt text-[10px]"></i>
               </button>
             </div>
           ))
         )}
       </nav>
 
-      <div className={`p-6 border-t ${theme === 'dark' ? 'border-purple-900/10' : 'border-purple-200/20'} space-y-3`}>
-        <div className={`flex items-center gap-3 px-4 py-3 ${theme === 'dark' ? 'bg-zinc-900/40 border-white/5' : 'bg-white border-purple-100/40 shadow-sm'} rounded-2xl border mb-4`}>
-           <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-purple-500/30">
-              <img src={user?.avatar || "https://picsum.photos/100/100?random=42"} alt="User" className="w-full h-full object-cover" />
+      <div className="p-6 border-t border-white/5 space-y-4">
+        <div className="flex items-center justify-end">
+           <button onClick={onLogout} className="text-[10px] font-black text-zinc-500 uppercase tracking-widest hover:text-red-400 transition-colors">Sign Out</button>
+        </div>
+        <div className="flex items-center gap-3 p-3 bg-zinc-900/50 rounded-xl border border-white/5">
+           <div className="w-10 h-10 rounded-xl overflow-hidden bg-purple-500/20 border border-purple-500/20">
+              <img src={user?.avatar} alt="User" className="w-full h-full object-cover avatar-animated" />
            </div>
            <div className="flex flex-col min-w-0">
-              <span className={`text-xs font-black ${theme === 'dark' ? 'text-white' : 'text-zinc-800'} truncate`}>{user?.name}</span>
-              <span className="text-[9px] text-purple-500 font-bold uppercase tracking-widest">Academic Pro</span>
+              <span className="text-xs font-black text-white truncate">{user?.name}</span>
+              <span className="text-[9px] text-purple-500 font-bold uppercase tracking-widest">Study Rank</span>
            </div>
         </div>
-        <button 
-          onClick={onLogout}
-          className="w-full py-3 flex items-center justify-start gap-4 px-4 text-xs font-bold text-zinc-500 hover:text-red-400 transition-colors"
-        >
-          <i className="fas fa-power-off w-4"></i>
-          Logout Console
-        </button>
       </div>
     </>
   );
 
   return (
-    <div className="flex h-screen overflow-hidden text-inherit">
-      {/* Mobile Backdrop */}
+    <div className="flex h-screen overflow-hidden">
       {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[60] md:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] md:hidden" onClick={() => setIsSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-[70] w-80 flex flex-col border-r ${theme === 'dark' ? 'border-white/5 bg-[#080212]/95' : 'border-purple-100 bg-[#f4f1ee]/95'} backdrop-blur-3xl shadow-2xl transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]
+        fixed inset-y-0 left-0 z-[70] w-72 flex flex-col border-r border-white/5 bg-[#05010d] transition-transform duration-300
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         md:relative md:translate-x-0 md:flex
       `}>
         <SidebarContent />
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 relative">
-        <header className={`h-20 border-b ${theme === 'dark' ? 'border-white/5 bg-[#030008]/40' : 'border-purple-200/20 bg-white/40'} backdrop-blur-2xl flex items-center justify-between px-8 shadow-sm z-50`}>
-          <div className="flex items-center gap-6">
-            <button 
-              onClick={toggleSidebar}
-              className="md:hidden p-2 text-purple-400 hover:text-purple-600 transition-colors"
-            >
-              <i className="fas fa-align-left text-2xl"></i>
+      <main className="flex-1 flex flex-col min-w-0 relative bg-inherit">
+        <header className="h-16 border-b border-white/5 bg-[#05010d]/60 backdrop-blur-md flex items-center justify-between px-6 z-50">
+          <div className="flex items-center gap-4">
+            <button onClick={toggleSidebar} className="md:hidden p-2 text-purple-500">
+              <i className="fas fa-bars-staggered text-xl"></i>
             </button>
-            
-            <div className="hidden md:flex flex-col">
-               <span className={`text-[10px] ${theme === 'dark' ? 'text-purple-500' : 'text-purple-600/70'} font-black uppercase tracking-[0.2em] mb-1`}>Architecture Node</span>
-               <h1 className={`text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-zinc-800'} tracking-tight`}>
-                 {sessions.find(s => s.id === activeSessionId)?.title || "Idle State"}
+            <div className="flex flex-col">
+               <h1 className="text-sm font-black text-white tracking-tight">
+                 {activeSessionId ? (sessions.find(s => s.id === activeSessionId)?.title || "Study Console") : "Buddy Idle"}
                </h1>
             </div>
           </div>
           
-          <div className="flex items-center gap-4 relative" ref={userInfoRef}>
-             <button 
-                onClick={() => setShowUserInfo(!showUserInfo)}
-                className={`group flex items-center gap-3 px-3 py-1.5 rounded-2xl border transition-all ${theme === 'dark' ? 'border-white/10 bg-white/5 text-purple-400 hover:bg-white/10' : 'border-purple-200 bg-white text-purple-600 hover:bg-purple-50 shadow-sm'}`}
-             >
-                <div className="w-8 h-8 rounded-full border-2 border-purple-500 overflow-hidden shadow-lg shadow-purple-500/10 group-hover:scale-105 transition-transform">
-                  <img src={user?.avatar || "https://picsum.photos/100/100?random=42"} alt="User" className="w-full h-full object-cover" />
-                </div>
-                <div className="hidden sm:flex flex-col items-start mr-1">
-                   <span className={`text-[10px] font-black ${theme === 'dark' ? 'text-white' : 'text-zinc-800'} uppercase tracking-tighter`}>{user?.name}</span>
-                   <span className="text-[8px] text-purple-500 font-bold uppercase tracking-widest">ID Active</span>
-                </div>
-                <i className={`fas fa-chevron-down text-[8px] text-zinc-500 transition-transform ${showUserInfo ? 'rotate-180' : ''}`}></i>
-             </button>
-
-             {showUserInfo && (
-               <div className={`absolute top-16 right-0 w-72 p-6 rounded-[24px] border glass-card animate-in fade-in zoom-in slide-in-from-top-4 duration-300 z-[100] ${theme === 'dark' ? 'border-purple-500/20' : 'border-purple-200'} shadow-2xl`}>
-                 <div className="flex flex-col gap-6">
-                    <div className="flex items-center gap-4">
-                       <div className="w-14 h-14 rounded-2xl border-2 border-purple-500 overflow-hidden shadow-2xl">
-                          <img src={user?.avatar || "https://picsum.photos/100/100?random=42"} alt="User" className="w-full h-full object-cover" />
-                       </div>
-                       <div className="flex flex-col">
-                          <span className={`text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-zinc-900'}`}>{user?.name}</span>
-                          <span className="text-[9px] text-purple-500 font-extrabold uppercase tracking-[0.2em] py-0.5 px-2 bg-purple-500/10 rounded-full w-fit mt-1">Academic Pro</span>
-                       </div>
+          <div className="flex items-center gap-3">
+             <div className="relative" ref={userInfoRef}>
+                <button onClick={() => setShowUserInfo(!showUserInfo)} className="w-10 h-10 rounded-xl overflow-hidden border-2 border-purple-500/30 transition-transform active:scale-95">
+                   <img src={user?.avatar} alt="User" className="w-full h-full object-cover avatar-animated" />
+                </button>
+                {showUserInfo && (
+                  <div className="absolute top-14 right-0 w-64 p-5 rounded-2xl border glass-card shadow-2xl z-[100] animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-center gap-4 mb-4">
+                      <img src={user?.avatar} className="w-12 h-12 rounded-xl border border-purple-500/20 avatar-animated" />
+                      <div>
+                        <p className="text-xs font-black text-white">{user?.name}</p>
+                        <p className="text-[9px] font-bold text-purple-500 uppercase tracking-widest">Study Buddy Status</p>
+                      </div>
                     </div>
-                    
-                    <div className="space-y-4 pt-4 border-t border-purple-500/10">
-                       <div className="space-y-1">
-                          <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${theme === 'dark' ? 'text-zinc-500' : 'text-zinc-400'}`}>Identity Node</p>
-                          <p className={`text-xs font-semibold truncate ${theme === 'dark' ? 'text-zinc-300' : 'text-zinc-700'}`}>{user?.email}</p>
-                       </div>
+                    <div className="pt-4 border-t border-purple-500/10 flex justify-between">
+                       <button onClick={onLogout} className="text-[10px] font-black text-red-500 uppercase tracking-widest">Log Out</button>
+                       <button onClick={() => setShowUserInfo(false)} className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Close</button>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-2 pt-2">
-                       <button 
-                          onClick={() => setShowUserInfo(false)}
-                          className={`py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${theme === 'dark' ? 'border-white/5 bg-white/5 text-zinc-400 hover:text-white' : 'border-purple-100 bg-purple-50 text-purple-600 hover:bg-purple-100'}`}
-                       >
-                          Close
-                       </button>
-                       <button 
-                          onClick={onLogout}
-                          className="py-2.5 bg-red-500/10 text-red-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all border border-red-500/20"
-                       >
-                          Sign Out
-                       </button>
-                    </div>
-                 </div>
-               </div>
-             )}
+                  </div>
+                )}
+             </div>
           </div>
         </header>
         <div className="flex-1 overflow-hidden relative">
