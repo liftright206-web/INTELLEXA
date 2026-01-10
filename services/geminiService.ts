@@ -104,14 +104,7 @@ export async function getDialogueSuggestions(history: Message[]): Promise<string
   const ai = new GoogleGenAI({ apiKey });
   const context = history.slice(-3).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
   
-  const promptText = `Based on the following conversation context, generate 3 very short, snappy, and conversational suggested replies that the USER might want to say next to Intellexa. 
-  Keep them under 6 words each. 
-  Example: "Give me a challenge!", "Explain that diagram more.", "What's the real-life use?"
-  
-  CONTEXT:
-  ${context}
-  
-  Return ONLY a JSON array of 3 strings.`;
+  const promptText = `Suggest 3 very short, conversational replies for the user. Keep them under 6 words. Context: ${context}`;
 
   try {
     const response = await ai.models.generateContent({
@@ -127,7 +120,7 @@ export async function getDialogueSuggestions(history: Message[]): Promise<string
     });
     return JSON.parse(response.text || "[]");
   } catch (error) {
-    return ["Tell me more!", "Give me a puzzle!", "Draw it for me!"];
+    return ["Explain more!", "Draw a diagram!", "Give me a test!"];
   }
 }
 
@@ -136,6 +129,7 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
   if (!apiKey) throw new Error("AUTH_REQUIRED: No key selected.");
 
   const ai = new GoogleGenAI({ apiKey });
+  // Always use the standard model name for image generation
   const modelName = 'gemini-2.5-flash-image';
 
   const parts: any[] = [];
@@ -146,7 +140,7 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
         mimeType: 'image/png'
       }
     });
-    parts.push({ text: `Modify this image: ${config.prompt}.` });
+    parts.push({ text: `Modify this image based on: ${config.prompt}` });
   } else {
     parts.push({ text: config.prompt });
   }
@@ -169,12 +163,12 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
     }
   } catch (error: any) {
     if (error.message?.includes("429") || error.message?.includes("quota")) {
-      throw new Error("QUOTA_EXHAUSTED: Image generation requires a billing-enabled API key.");
+      throw new Error("QUOTA_EXHAUSTED: Free tier quota exceeded. Switching key required.");
     }
     throw error;
   }
 
-  throw new Error("Empty visual data returned from synthesis engine.");
+  throw new Error("Synthesis failed to return image data.");
 }
 
 export async function getVisualSuggestions(history: Message[], currentPrompt?: string): Promise<string[]> {
@@ -182,12 +176,9 @@ export async function getVisualSuggestions(history: Message[], currentPrompt?: s
   if (!apiKey) return [];
 
   const ai = new GoogleGenAI({ apiKey });
-  const context = history.slice(-5).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+  const context = history.slice(-3).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
   
-  const promptText = `Suggest 3 creative visual prompts that are strictly relevant to the current conversation context.
-  Context: ${context}
-  ${currentPrompt ? `Current Input: "${currentPrompt}"` : ""}
-  The prompts should be diverse and creative. Return only a JSON array of 3 strings.`;
+  const promptText = `Suggest 3 creative visual prompts for an AI image generator based on this context: ${context}. Return only a JSON array of 3 strings.`;
 
   try {
     const response = await ai.models.generateContent({

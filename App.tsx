@@ -14,7 +14,7 @@ const USER_KEY = 'intellexa_user_v3';
 const App: React.FC = () => {
   const [view, setView] = useState<'landing' | 'auth' | 'chat'>('landing');
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [apiKeyReady, setApiKeyReady] = useState<boolean>(false);
+  const [apiKeyReady, setApiKeyReady] = useState<boolean>(true); // Default to true to avoid blocking, handled on fail
   
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem(USER_KEY);
@@ -45,7 +45,6 @@ const App: React.FC = () => {
   const [inputValue, setInputValue] = useState('');
   const [chatMode, setChatMode] = useState<ChatMode>('lite');
   const [isTyping, setIsTyping] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   const [dialogueChips, setDialogueChips] = useState<string[]>([]);
 
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
@@ -54,7 +53,6 @@ const App: React.FC = () => {
   const [refiningImage, setRefiningImage] = useState<string | null>(null);
   const [visualConfig, setVisualConfig] = useState<ImageGenerationConfig>({ prompt: '', aspectRatio: '1:1' });
   const [visualSuggestions, setVisualSuggestions] = useState<string[]>([]);
-  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
   const [debouncedVisualPrompt, setDebouncedVisualPrompt] = useState('');
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -66,8 +64,6 @@ const App: React.FC = () => {
       if (win.aistudio) {
         const hasKey = await win.aistudio.hasSelectedApiKey();
         setApiKeyReady(hasKey);
-      } else {
-        setApiKeyReady(!!process.env.API_KEY);
       }
     };
     checkKey();
@@ -100,16 +96,14 @@ const App: React.FC = () => {
   }, [visualConfig.prompt, showVisualArchitect]);
 
   useEffect(() => {
-    if (showVisualArchitect && !refiningImage && activeSession && apiKeyReady) {
+    if (showVisualArchitect && !refiningImage && activeSession) {
       const fetchIdeas = async () => {
-        setIsFetchingSuggestions(true);
         const ideas = await getVisualSuggestions(activeSession.messages, debouncedVisualPrompt);
         if (ideas.length > 0) setVisualSuggestions(ideas);
-        setIsFetchingSuggestions(false);
       };
       fetchIdeas();
     }
-  }, [debouncedVisualPrompt, showVisualArchitect, refiningImage, apiKeyReady]);
+  }, [debouncedVisualPrompt, showVisualArchitect, refiningImage]);
 
   const handleOpenKeyPicker = async () => {
     const win = window as any;
@@ -156,11 +150,6 @@ const App: React.FC = () => {
 
   const sendMessage = async (text: string, image?: string) => {
     if (!activeSessionId) return;
-
-    if (!apiKeyReady) {
-      handleOpenKeyPicker();
-      return;
-    }
 
     setDialogueChips([]);
     const userMessage: Message = {
@@ -211,18 +200,19 @@ const App: React.FC = () => {
         }));
       }
 
-      const updatedHistory = [...messages, userMessage, { ...assistantMessage, content: accumulatedContent }];
-      const suggestions = await getDialogueSuggestions(updatedHistory);
+      const suggestions = await getDialogueSuggestions([...messages, userMessage, { ...assistantMessage, content: accumulatedContent }]);
       setDialogueChips(suggestions);
 
     } catch (error: any) {
       console.error(error);
-      if (error.message?.includes("429") || error.message?.includes("quota") || error.message?.includes("not found")) {
-        setApiKeyReady(false);
+      let errorMsg = `Communication Error: ${error.message}.`;
+      
+      if (error.message?.includes("429") || error.message?.includes("quota")) {
+        errorMsg = "Quota Exceeded: The system key is busy. Please select a personal API key with billing enabled to continue.";
         handleOpenKeyPicker();
       }
-      const errorMessage = `Connection Disrupted: ${error.message}. Please ensure you've selected an active API key with available quota.`;
-      setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: s.messages.map(msg => msg.id === assistantMsgId ? { ...msg, content: errorMessage, isThinking: false } : msg) } : s));
+
+      setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: s.messages.map(msg => msg.id === assistantMsgId ? { ...msg, content: errorMsg, isThinking: false } : msg) } : s));
     } finally {
       setIsTyping(false);
     }
@@ -240,11 +230,7 @@ const App: React.FC = () => {
 
   const handleGenerateVisual = async (configOverride?: Partial<ImageGenerationConfig>) => {
     if (!activeSessionId) return;
-    if (!apiKeyReady) {
-      handleOpenKeyPicker();
-      return;
-    }
-
+    
     const finalConfig: ImageGenerationConfig = { 
       ...visualConfig, 
       prompt: visualConfig.prompt || inputValue || "an educational diagram",
@@ -279,8 +265,8 @@ const App: React.FC = () => {
       let errorText = `Visual Synthesis Failed: ${error.message}.`;
       
       if (error.message?.includes("QUOTA_EXHAUSTED") || error.message?.includes("429")) {
-        errorText = "Visual Synthesis Failed: Your current API key has no quota for image generation. Please select a project with active billing.";
-        handleOpenKeyPicker(); // Force re-selection on quota error
+        errorText = "Visual Synthesis Failed: Quota limit reached on current key. Please select a billing-enabled API key via the Command Center.";
+        handleOpenKeyPicker();
       }
 
       const errorMsg: Message = {
@@ -300,10 +286,6 @@ const App: React.FC = () => {
   const handleAction = async (actionType: 'mock-test' | 'flowchart' | 'summary' | 'problem-solver' | 'visual-render') => {
     if (isTyping || isGeneratingImage) return;
     if (actionType === 'visual-render') {
-      if (!apiKeyReady) {
-        handleOpenKeyPicker();
-        return;
-      }
       setVisualConfig(prev => ({ ...prev, prompt: inputValue }));
       setRefiningImage(null);
       setShowVisualArchitect(true);
@@ -342,7 +324,7 @@ const App: React.FC = () => {
         onSessionSelect={setActiveSessionId}
         onNewChat={handleNewChat}
         onDeleteSession={(id) => { setSessions(prev => prev.filter(s => s.id !== id)); if (activeSessionId === id) setActiveSessionId(''); }}
-        onReset={() => { if(confirm("Reset Workspace? This will delete all your study history.")) { setSessions([]); handleNewChat(); } }}
+        onReset={() => { if(confirm("Reset Workspace? This will delete all history.")) { setSessions([]); handleNewChat(); } }}
         onGoHome={() => setView('landing')}
         onLogout={handleLogout}
       >

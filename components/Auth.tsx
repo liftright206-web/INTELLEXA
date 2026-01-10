@@ -48,7 +48,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
             {isLogin ? 'Welcome Back' : 'Create Profile'}
           </h2>
           <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-8">
-            {isLogin ? 'Enter your credentials to continue' : 'Join the elite architect network'}
+            {isLogin ? 'Enter credentials to continue' : 'Join the elite architect network'}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
