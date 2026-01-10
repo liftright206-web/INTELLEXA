@@ -217,11 +217,11 @@ const App: React.FC = () => {
 
     } catch (error: any) {
       console.error(error);
-      if (error.message.includes("429") || error.message.includes("quota") || error.message.includes("not found")) {
+      if (error.message?.includes("429") || error.message?.includes("quota") || error.message?.includes("not found")) {
         setApiKeyReady(false);
         handleOpenKeyPicker();
       }
-      const errorMessage = `Connection Disrupted: ${error.message}. Please ensure you've selected an active API key.`;
+      const errorMessage = `Connection Disrupted: ${error.message}. Please ensure you've selected an active API key with available quota.`;
       setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: s.messages.map(msg => msg.id === assistantMsgId ? { ...msg, content: errorMessage, isThinking: false } : msg) } : s));
     } finally {
       setIsTyping(false);
@@ -276,10 +276,17 @@ const App: React.FC = () => {
       setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, assistantMsg] } : s));
     } catch (error: any) {
       console.error(error);
+      let errorText = `Visual Synthesis Failed: ${error.message}.`;
+      
+      if (error.message?.includes("QUOTA_EXHAUSTED") || error.message?.includes("429")) {
+        errorText = "Visual Synthesis Failed: Your current API key has no quota for image generation. Please select a project with active billing.";
+        handleOpenKeyPicker(); // Force re-selection on quota error
+      }
+
       const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `Visual Synthesis Failed: ${error.message}. Ensure you have an active internet connection and a valid API key.`,
+        content: errorText,
         timestamp: new Date()
       };
       setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, errorMsg] } : s));

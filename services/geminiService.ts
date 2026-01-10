@@ -30,7 +30,7 @@ export async function* getStreamingTutorResponse(
 ) {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
-    throw new Error("API Connection Error: No key provided.");
+    throw new Error("AUTH_REQUIRED: No API key provided.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -133,10 +133,9 @@ export async function getDialogueSuggestions(history: Message[]): Promise<string
 
 export async function generateTutorImage(config: ImageGenerationConfig): Promise<string> {
   const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("API Connection Error: No key selected.");
+  if (!apiKey) throw new Error("AUTH_REQUIRED: No key selected.");
 
   const ai = new GoogleGenAI({ apiKey });
-  // Switched to gemini-2.5-flash-image as default for better reliability
   const modelName = 'gemini-2.5-flash-image';
 
   const parts: any[] = [];
@@ -152,23 +151,30 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
     parts.push({ text: config.prompt });
   }
 
-  const response = await ai.models.generateContent({
-    model: modelName,
-    contents: { parts },
-    config: {
-      imageConfig: {
-        aspectRatio: config.aspectRatio || '1:1',
+  try {
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: { parts },
+      config: {
+        imageConfig: {
+          aspectRatio: config.aspectRatio || '1:1',
+        }
+      }
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
       }
     }
-  });
-
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData) {
-      return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+  } catch (error: any) {
+    if (error.message?.includes("429") || error.message?.includes("quota")) {
+      throw new Error("QUOTA_EXHAUSTED: Image generation requires a billing-enabled API key.");
     }
+    throw error;
   }
 
-  throw new Error("Visual synthesis failed: Empty response from engine.");
+  throw new Error("Empty visual data returned from synthesis engine.");
 }
 
 export async function getVisualSuggestions(history: Message[], currentPrompt?: string): Promise<string[]> {
