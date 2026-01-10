@@ -1,31 +1,26 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Message, ChatMode, GroundingLink, ImageGenerationConfig } from "../types";
 
-const SYSTEM_INSTRUCTION = `You are Intellexa, a brilliant, witty, and friendly AI Architect and Education Specialist. 
-Your mission is to architect knowledge using simple, clear, and easy-to-understand English.
+const SYSTEM_INSTRUCTION = `You are Intellexa, a brilliant, witty, and highly interactive AI Architect and Education Specialist. 
+
+CORE MISSION: You are NOT a search engine. You are a CONVERSATIONAL TUTOR. Your goal is to architect knowledge through active dialogue, not just information dumps.
 
 Persona Guidelines:
-- PERSONALITY: Charismatic and helpful. You are like a brilliant older sibling or a friendly tutor.
-- LANGUAGE: Use simple words. Avoid big academic jargon.
-- SENTENCE STRUCTURE: Keep sentences short and direct.
-- HUMOR: Use fun, simple jokes and architect puns. (e.g., "Let's build this answer together!")
-- ENGAGEMENT: Use phrases like "Neural pathways engaged" or "Logic gates opening!"
+- BE SOCRATIC: Instead of just giving the answer, guide the user to it. 
+- TWO-WAY PROTOCOL: Every single response MUST end with an engaging follow-up question, a "Challenge Prompt," or a request for the user to try a task.
+- STYLE: Witty, charismatic, and encouraging. Use simple English but sophisticated structural logic.
+- NO JARGON: Explain complex ideas with real-world analogies.
 
-Core Objectives:
-1. Explain academic concepts using plain, everyday English.
-2. Provide step-by-step solutions broken down into simple parts.
-3. GENERATE STRUCTURAL DIAGRAMS: You MUST provide Mermaid.js diagrams for any concept that has a process, hierarchy, or structure. Use the format: \`\`\`mermaid [CODE] \`\`\`.
-4. Use real-life analogies to explain hard ideas.
+Structural Rules:
+1. Explain the concept briefly.
+2. Use ALL CAPS for headers.
+3. PROVIDE DIAGRAMS: You MUST provide Mermaid.js diagrams for structural concepts using \`\`\`mermaid [CODE] \`\`\`.
+4. CHECK FOR UNDERSTANDING: Never assume they "got it." Ask them to explain a piece back to you or solve a mini-puzzle.
 
-CRITICAL FORMATTING RULE:
-- DO NOT use Markdown bolding (double asterisks) or italics.
-- Use ALL CAPS for headers or labels.
-- Use plain text, numbering, and spacing for structure.
-
-Output Format:
-- Use clear plain-text headings in ALL CAPS.
-- Use mermaid blocks for structural diagrams (Flowcharts, Mindmaps, or Sequence diagrams).
-- End with a "Witty Revision Nugget".`;
+CRITICAL FORMATTING:
+- NO double asterisks for bolding. NO italics.
+- Use plain text, numbers, and spacing.
+- ALWAYS end with a conversation starter to keep the two-way flow alive.`;
 
 export async function* getStreamingTutorResponse(
   prompt: string,
@@ -35,14 +30,13 @@ export async function* getStreamingTutorResponse(
 ) {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
-    console.error("Intellexa Configuration Error: API_KEY is missing from Vercel Environment Variables.");
-    throw new Error("Neural Link Offline: Please configure the API_KEY in your deployment settings.");
+    throw new Error("API Connection Error: No key provided.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
   
-  let modelName = 'gemini-flash-lite-latest'; 
-  if (mode === 'search') modelName = 'gemini-3-flash-preview';
+  let modelName = 'gemini-3-flash-preview'; 
+  if (mode === 'lite') modelName = 'gemini-3-flash-preview';
   if (mode === 'complex' || image) modelName = 'gemini-3-pro-preview'; 
 
   const contents: any[] = [];
@@ -67,7 +61,7 @@ export async function* getStreamingTutorResponse(
 
   const config: any = {
     systemInstruction: SYSTEM_INSTRUCTION,
-    temperature: 0.7,
+    temperature: 0.8,
   };
 
   if (mode === 'search') {
@@ -103,11 +97,46 @@ export async function* getStreamingTutorResponse(
   }
 }
 
-export async function generateTutorImage(config: ImageGenerationConfig): Promise<string> {
+export async function getDialogueSuggestions(history: Message[]): Promise<string[]> {
   const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("Neural link configuration missing: API_KEY.");
+  if (!apiKey) return [];
 
   const ai = new GoogleGenAI({ apiKey });
+  const context = history.slice(-3).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+  
+  const promptText = `Based on the following conversation context, generate 3 very short, snappy, and conversational suggested replies that the USER might want to say next to Intellexa. 
+  Keep them under 6 words each. 
+  Example: "Give me a challenge!", "Explain that diagram more.", "What's the real-life use?"
+  
+  CONTEXT:
+  ${context}
+  
+  Return ONLY a JSON array of 3 strings.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: { parts: [{ text: promptText }] },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING }
+        }
+      }
+    });
+    return JSON.parse(response.text || "[]");
+  } catch (error) {
+    return ["Tell me more!", "Give me a puzzle!", "Draw it for me!"];
+  }
+}
+
+export async function generateTutorImage(config: ImageGenerationConfig): Promise<string> {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) throw new Error("API Connection Error: No key selected.");
+
+  const ai = new GoogleGenAI({ apiKey });
+  // Switched to gemini-2.5-flash-image as default for better reliability
   const modelName = 'gemini-2.5-flash-image';
 
   const parts: any[] = [];
@@ -118,9 +147,9 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
         mimeType: 'image/png'
       }
     });
-    parts.push({ text: `Modify this image exactly according to these instructions: ${config.prompt}. Maintain high quality and literal adherence to the request.` });
+    parts.push({ text: `Modify this image: ${config.prompt}.` });
   } else {
-    parts.push({ text: `${config.prompt}. Ensure high aesthetic quality, vivid detail, and strict literal adherence to every aspect of the prompt without adding educational or academic context unless specifically asked for.` });
+    parts.push({ text: config.prompt });
   }
 
   const response = await ai.models.generateContent({
@@ -128,7 +157,7 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
     contents: { parts },
     config: {
       imageConfig: {
-        aspectRatio: config.aspectRatio || '1:1'
+        aspectRatio: config.aspectRatio || '1:1',
       }
     }
   });
@@ -139,7 +168,7 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
     }
   }
 
-  throw new Error("No image data returned from model.");
+  throw new Error("Visual synthesis failed: Empty response from engine.");
 }
 
 export async function getVisualSuggestions(history: Message[], currentPrompt?: string): Promise<string[]> {
