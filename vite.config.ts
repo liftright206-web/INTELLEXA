@@ -4,23 +4,18 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   define: {
-    // This explicitly replaces process.env.API_KEY in the source code 
-    // with the value from Vercel's build environment.
+    // This allows process.env.API_KEY to work in the browser on Vercel
+    // by replacing the string with the value during the build process.
     'process.env.API_KEY': JSON.stringify(process.env.API_KEY || '')
+  },
+  build: {
+    outDir: 'dist',
+    target: 'esnext',
+    minify: 'esbuild',
+    reportCompressedSize: false
   },
   server: {
     port: 3000,
     host: true
-  },
-  build: {
-    outDir: 'dist',
-    sourcemap: false,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', '@google/genai']
-        }
-      }
-    }
   }
 });
