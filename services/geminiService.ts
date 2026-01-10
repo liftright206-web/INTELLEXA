@@ -36,8 +36,8 @@ export async function* getStreamingTutorResponse(
 ) {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
-    console.error("Intellexa Error: API_KEY is missing. Please add it to your Replit Secrets (Environment Variables).");
-    throw new Error("Neural Link Offline: Please check your environment configuration.");
+    console.error("Intellexa Error: API_KEY is missing. Please add it to your Vercel Project Environment Variables.");
+    throw new Error("Neural Link Offline: API Configuration missing.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -106,7 +106,7 @@ export async function* getStreamingTutorResponse(
 
 export async function generateTutorImage(config: ImageGenerationConfig): Promise<string> {
   const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("API Key missing in environment.");
+  if (!apiKey) throw new Error("API Key missing in Vercel environment.");
 
   const ai = new GoogleGenAI({ apiKey });
   const modelName = 'gemini-2.5-flash-image';
