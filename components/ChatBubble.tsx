@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Message } from '../types';
 import MermaidDiagram from './MermaidDiagram';
@@ -6,10 +5,9 @@ import { IntellexaIcon } from './Branding';
 
 interface ChatBubbleProps {
   message: Message;
-  onRefine?: (image: string) => void;
 }
 
-const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onRefine }) => {
+const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
   const isUser = message.role === 'user';
 
   const renderContent = (content: string) => {
@@ -48,24 +46,6 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onRefine }) => {
               </div>
             )}
             
-            {message.attachments && message.attachments.length > 0 && (
-              <div className="mb-4 flex flex-wrap gap-2">
-                {message.attachments.map((img, idx) => (
-                  <div key={idx} className="relative group overflow-hidden rounded-xl border border-white/10 shadow-lg">
-                    <img src={img} className="max-w-full max-h-[300px] object-cover transition-transform group-hover:scale-105" />
-                    {!isUser && onRefine && (
-                      <button 
-                        onClick={() => onRefine(img)}
-                        className="absolute bottom-2 right-2 bg-purple-600 hover:bg-purple-500 text-white text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        Refine
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
             <div className="prose prose-invert max-w-none">
               {renderContent(message.content)}
             </div>

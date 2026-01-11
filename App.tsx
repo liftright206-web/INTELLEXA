@@ -5,8 +5,8 @@ import LandingPage from './components/LandingPage';
 import Auth from './components/Auth';
 import QuotesBar from './components/QuotesBar';
 import RocketTransition from './components/RocketTransition';
-import { GradeLevel, Subject, Message, ChatSession, User, ChatMode, GroundingLink, ImageGenerationConfig } from './types';
-import { getStreamingTutorResponse, generateTutorImage, getVisualSuggestions, getDialogueSuggestions } from './services/geminiService';
+import { GradeLevel, Subject, Message, ChatSession, User, ChatMode, GroundingLink } from './types';
+import { getStreamingTutorResponse, getDialogueSuggestions } from './services/geminiService';
 
 const STORAGE_KEY = 'intellexa_history_v3';
 const USER_KEY = 'intellexa_user_v3';
@@ -47,23 +47,13 @@ const App: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [dialogueChips, setDialogueChips] = useState<string[]>([]);
 
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const [pendingImage, setPendingImage] = useState<string | null>(null);
-  const [showVisualArchitect, setShowVisualArchitect] = useState(false);
-  const [refiningImage, setRefiningImage] = useState<string | null>(null);
-  const [visualConfig, setVisualConfig] = useState<ImageGenerationConfig>({ prompt: '', aspectRatio: '1:1' });
-  const [visualSuggestions, setVisualSuggestions] = useState<string[]>([]);
-  const [debouncedVisualPrompt, setDebouncedVisualPrompt] = useState('');
-
   const scrollRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleOpenKeyPicker = async () => {
     const win = window as any;
     if (win.aistudio) {
       try {
         await win.aistudio.openSelectKey();
-        // Force refresh the state
         const hasKey = await win.aistudio.hasSelectedApiKey();
         setApiKeyReady(hasKey);
       } catch (e) {
@@ -100,26 +90,7 @@ const App: React.FC = () => {
         behavior: 'smooth'
       });
     }
-  }, [activeSessionId, sessions, isTyping, isGeneratingImage, dialogueChips]);
-
-  useEffect(() => {
-    if (showVisualArchitect) {
-      const timer = setTimeout(() => {
-        setDebouncedVisualPrompt(visualConfig.prompt);
-      }, 750);
-      return () => clearTimeout(timer);
-    }
-  }, [visualConfig.prompt, showVisualArchitect]);
-
-  useEffect(() => {
-    if (showVisualArchitect && !refiningImage && activeSession) {
-      const fetchIdeas = async () => {
-        const ideas = await getVisualSuggestions(activeSession.messages, debouncedVisualPrompt);
-        if (ideas.length > 0) setVisualSuggestions(ideas);
-      };
-      fetchIdeas();
-    }
-  }, [debouncedVisualPrompt, showVisualArchitect, refiningImage]);
+  }, [activeSessionId, sessions, isTyping, dialogueChips]);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const messages = activeSession ? activeSession.messages : [];
@@ -132,7 +103,7 @@ const App: React.FC = () => {
       messages: [{
         id: 'welcome',
         role: 'assistant',
-        content: `LOGIC GATES: OPEN! Welcome back, ${user?.name || 'Friend'}! I'm Intellexa. I can architect solutions for your homework, draw structural diagrams, or even generate educational visuals! What's on your mind?`,
+        content: `LOGIC GATES: OPEN! Welcome back, ${user?.name || 'Friend'}! I'm Intellexa. I can architect solutions for your homework or draw structural diagrams for complex concepts. What's on your mind?`,
         timestamp: new Date()
       }],
       createdAt: new Date(),
@@ -156,7 +127,7 @@ const App: React.FC = () => {
     }, 1500); 
   };
 
-  const sendMessage = async (text: string, image?: string) => {
+  const sendMessage = async (text: string) => {
     if (!activeSessionId) return;
 
     if (!apiKeyReady) {
@@ -168,8 +139,7 @@ const App: React.FC = () => {
       id: Date.now().toString(),
       role: 'user',
       content: text,
-      timestamp: new Date(),
-      attachments: image ? [image] : []
+      timestamp: new Date()
     };
 
     setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, userMessage] } : s));
@@ -181,7 +151,7 @@ const App: React.FC = () => {
       role: 'assistant',
       content: '',
       timestamp: new Date(),
-      isThinking: chatMode === 'complex' && !image
+      isThinking: chatMode === 'complex'
     };
 
     setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, assistantMessage] } : s));
@@ -189,7 +159,7 @@ const App: React.FC = () => {
     try {
       let accumulatedContent = '';
       let accumulatedLinks: GroundingLink[] = [];
-      const stream = getStreamingTutorResponse(userMessage.content, messages.slice(-10), chatMode, image || undefined);
+      const stream = getStreamingTutorResponse(userMessage.content, messages.slice(-10), chatMode);
 
       for await (const chunk of stream) {
         accumulatedContent += chunk.text;
@@ -220,7 +190,7 @@ const App: React.FC = () => {
       let errorMsg = `Communication Error: ${error.message}.`;
       
       if (error.message?.includes("QUOTA") || error.message?.includes("429")) {
-        errorMsg = "Critical: Current API project quota exhausted. Please select a BILLING-ENABLED project key from the dialog that just appeared.";
+        errorMsg = "Critical: Current API project quota exhausted. Please try again later or select a different project key.";
         await handleOpenKeyPicker();
       }
 
@@ -232,75 +202,14 @@ const App: React.FC = () => {
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!inputValue.trim() && !pendingImage) return;
+    if (!inputValue.trim()) return;
     const text = inputValue;
-    const img = pendingImage;
     setInputValue('');
-    setPendingImage(null);
-    await sendMessage(text, img || undefined);
+    await sendMessage(text);
   };
 
-  const handleGenerateVisual = async (configOverride?: Partial<ImageGenerationConfig>) => {
-    if (!activeSessionId) return;
-    
-    const finalConfig: ImageGenerationConfig = { 
-      ...visualConfig, 
-      prompt: visualConfig.prompt || inputValue || "an educational diagram",
-      base64Source: refiningImage || undefined,
-      ...configOverride 
-    };
-    
-    setIsGeneratingImage(true);
-    setShowVisualArchitect(false);
-    if (!configOverride?.prompt) setInputValue('');
-
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: refiningImage ? `Requesting visual refinement: ${finalConfig.prompt}` : `Synthesizing educational visual: ${finalConfig.prompt}`,
-      timestamp: new Date()
-    };
-    setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, userMsg] } : s));
-
-    try {
-      const imageUrl = await generateTutorImage(finalConfig);
-      const assistantMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: refiningImage ? `Polishing complete. Architectural model updated.` : `Synthesis successful. Visual architecture rendered.`,
-        timestamp: new Date(),
-        attachments: [imageUrl]
-      };
-      setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, assistantMsg] } : s));
-    } catch (error: any) {
-      console.error(error);
-      let errorText = `Visual Synthesis Failed: ${error.message}.`;
-      
-      if (error.message?.includes("QUOTA") || error.message?.includes("429")) {
-        errorText = "Visual Synthesis Failed: Your current API key has NO QUOTA for image generation. You MUST select an API key from a Google Cloud project with ACTIVE BILLING.";
-        await handleOpenKeyPicker();
-      }
-
-      const errorMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: errorText,
-        timestamp: new Date()
-      };
-      setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, errorMsg] } : s));
-    } finally {
-      setIsGeneratingImage(false);
-      setRefiningImage(null);
-      setVisualConfig(prev => ({ ...prev, prompt: '' }));
-    }
-  };
-
-  const handleAction = async (actionType: 'mock-test' | 'flowchart' | 'summary' | 'problem-solver' | 'visual-render') => {
-    if (isTyping || isGeneratingImage) return;
-    if (actionType === 'visual-render') {
-      setShowVisualArchitect(true);
-      return;
-    }
+  const handleAction = async (actionType: 'mock-test' | 'flowchart' | 'summary' | 'problem-solver') => {
+    if (isTyping) return;
     let actionPrompt = "";
     switch(actionType) {
       case 'mock-test': actionPrompt = "Initiate a quick practice test!"; break;
@@ -319,10 +228,10 @@ const App: React.FC = () => {
   if (view === 'auth') return <Auth onLogin={(u) => { setUser(u); startTransitionToChat(); }} onBack={() => setView('landing')} />;
 
   const QUICK_ACTIONS = [
-    { id: 'visual-render', label: 'VISUAL AID', icon: 'fa-wand-sparkles' },
     { id: 'flowchart', label: 'DIAGRAM AID', icon: 'fa-diagram-project' },
     { id: 'mock-test', label: 'PRACTICE TEST', icon: 'fa-vial' },
-    { id: 'summary', label: 'SUMMARY', icon: 'fa-book' }
+    { id: 'summary', label: 'SUMMARY', icon: 'fa-book' },
+    { id: 'problem-solver', label: 'STEP SOLVER', icon: 'fa-calculator' }
   ];
 
   return (
@@ -360,8 +269,8 @@ const App: React.FC = () => {
 
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-10 space-y-8 custom-scrollbar">
             <div className="max-w-4xl mx-auto pb-64">
-              {messages.map((msg) => <ChatBubble key={msg.id} message={msg} onRefine={(img) => { setRefiningImage(img); setShowVisualArchitect(true); }} />)}
-              {(isTyping || isGeneratingImage) && (
+              {messages.map((msg) => <ChatBubble key={msg.id} message={msg} />)}
+              {isTyping && (
                 <div className="flex justify-start mb-8 animate-pulse">
                   <div className="bg-zinc-900 border border-purple-500/20 px-5 py-3.5 rounded-2xl rounded-tl-none shadow-xl flex items-center gap-4">
                      <div className="flex gap-1.5">
@@ -370,60 +279,13 @@ const App: React.FC = () => {
                       <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce [animation-delay:0.4s]"></div>
                     </div>
                     <span className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em]">
-                      {isGeneratingImage ? "SYNTHESIZING VISUAL..." : "PROCESSING..."}
+                      PROCESSING...
                     </span>
                   </div>
                 </div>
               )}
             </div>
           </div>
-
-          {showVisualArchitect && (
-            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 md:p-6 bg-black/80 backdrop-blur-md animate-in fade-in">
-              <div className="w-full max-w-2xl glass-card bg-[#05010d] rounded-3xl p-6 md:p-8 shadow-2xl border-white/5 animate-in zoom-in-95 max-h-[90vh] overflow-y-auto custom-scrollbar">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-xl bg-purple-600 flex items-center justify-center text-white shadow-lg">
-                      <i className="fas fa-wand-magic-sparkles text-lg"></i>
-                    </div>
-                    <div>
-                      <h3 className="text-lg md:text-xl font-black text-white tracking-tight">{refiningImage ? 'Visual Polishing' : 'Architect Studio'}</h3>
-                      <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Image Synthesis</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setShowVisualArchitect(false)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-red-500/10 text-zinc-500">
-                    <i className="fas fa-times text-xl"></i>
-                  </button>
-                </div>
-
-                <div className="space-y-6">
-                  {refiningImage && (
-                    <div className="flex gap-4 items-center p-4 rounded-xl bg-purple-500/5 border border-purple-500/10">
-                      <img src={refiningImage} className="w-16 h-16 rounded-lg object-cover border border-purple-500/20" />
-                      <p className="text-xs font-medium text-zinc-400">Describe refinements for this visual.</p>
-                    </div>
-                  )}
-
-                  <textarea 
-                    value={visualConfig.prompt}
-                    onChange={(e) => setVisualConfig({...visualConfig, prompt: e.target.value})}
-                    placeholder="Describe the educational visual..."
-                    className="w-full h-32 p-4 rounded-xl border bg-zinc-900 border-white/5 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/30 font-medium resize-none text-sm"
-                  />
-
-                  <div className="grid grid-cols-5 gap-2">
-                    {['1:1', '16:9', '9:16', '4:3', '3:4'].map((ratio) => (
-                      <button key={ratio} onClick={() => setVisualConfig({...visualConfig, aspectRatio: ratio as any})} className={`py-2 rounded-lg text-[10px] font-black border transition-all ${visualConfig.aspectRatio === ratio ? 'bg-purple-600 text-white border-purple-500' : 'bg-zinc-800 text-zinc-500 border-transparent'}`}>{ratio}</button>
-                    ))}
-                  </div>
-
-                  <button onClick={() => handleGenerateVisual()} disabled={!visualConfig.prompt.trim()} className="w-full py-4 bg-purple-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-xl hover:bg-purple-500 disabled:opacity-50 active:scale-95">
-                    {refiningImage ? 'REFINE VISUAL' : 'SYNTHESIZE'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           <div className="absolute bottom-10 left-0 right-0 p-4 md:p-6 z-50 pointer-events-none">
             <div className="max-w-4xl mx-auto pointer-events-auto">
@@ -440,31 +302,16 @@ const App: React.FC = () => {
 
               <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-1">
                 {QUICK_ACTIONS.map((action) => (
-                  <button key={action.id} onClick={() => handleAction(action.id as any)} disabled={isTyping || isGeneratingImage} className="flex-shrink-0 flex items-center gap-3 px-4 md:px-5 py-2.5 rounded-xl bg-zinc-900/80 border-white/5 text-zinc-400 backdrop-blur-xl border text-[9px] font-black uppercase tracking-widest hover:border-purple-500 transition-all shadow-2xl disabled:opacity-30">
+                  <button key={action.id} onClick={() => handleAction(action.id as any)} disabled={isTyping} className="flex-shrink-0 flex items-center gap-3 px-4 md:px-5 py-2.5 rounded-xl bg-zinc-900/80 border-white/5 text-zinc-400 backdrop-blur-xl border text-[9px] font-black uppercase tracking-widest hover:border-purple-500 transition-all shadow-2xl disabled:opacity-30">
                     <i className={`fas ${action.icon} text-purple-500`}></i>{action.label}
                   </button>
                 ))}
               </div>
 
               <div className="relative glass-card p-1.5 rounded-3xl shadow-2xl border-white/10 overflow-hidden">
-                 {pendingImage && (
-                  <div className="relative inline-block m-2">
-                    <img src={pendingImage} className="h-20 w-20 object-cover rounded-xl border border-purple-500 shadow-xl" />
-                    <button onClick={() => setPendingImage(null)} className="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-lg"><i className="fas fa-times"></i></button>
-                  </div>
-                )}
                 <form onSubmit={handleSendMessage} className="flex items-center relative gap-1 px-4">
-                  <button type="button" onClick={() => fileInputRef.current?.click()} className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center text-zinc-500 hover:text-purple-400"><i className="fas fa-plus-circle text-xl"></i></button>
-                  <input type="file" ref={fileInputRef} onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onloadend = () => setPendingImage(reader.result as string);
-                      reader.readAsDataURL(file);
-                    }
-                  }} className="hidden" accept="image/*" />
                   <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Engage with Intellexa..." className="flex-1 py-3.5 px-3 bg-transparent focus:outline-none text-white font-medium text-base md:text-lg" />
-                  <button type="submit" disabled={isTyping || (!inputValue.trim() && !pendingImage)} className="w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center bg-purple-600 text-white shadow-lg hover:bg-purple-500 disabled:opacity-20 active:scale-95 transition-all"><i className="fas fa-paper-plane"></i></button>
+                  <button type="submit" disabled={isTyping || !inputValue.trim()} className="w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center bg-purple-600 text-white shadow-lg hover:bg-purple-500 disabled:opacity-20 active:scale-95 transition-all"><i className="fas fa-paper-plane"></i></button>
                 </form>
               </div>
             </div>

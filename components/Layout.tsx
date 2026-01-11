@@ -68,13 +68,6 @@ const Layout: React.FC<LayoutProps> = ({
           <i className="fas fa-plus text-[10px]"></i>
           NEW SESSION
         </button>
-        <button 
-          onClick={onSwitchKey}
-          className="w-full py-2.5 px-5 bg-zinc-900 border border-white/5 hover:border-purple-500/50 text-zinc-400 hover:text-white rounded-xl text-[9px] font-black flex items-center justify-center gap-2 transition-all uppercase tracking-widest"
-        >
-          <i className="fas fa-key text-[9px]"></i>
-          Switch API Key
-        </button>
       </div>
 
       <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">

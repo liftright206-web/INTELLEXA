@@ -1,4 +1,3 @@
-
 export enum GradeLevel {
   MiddleSchool = "Middle School (6-8)",
   HighSchool = "High School (9-10)",
@@ -20,12 +19,6 @@ export type ChatMode = 'lite' | 'search' | 'complex';
 export interface GroundingLink {
   uri: string;
   title: string;
-}
-
-export interface ImageGenerationConfig {
-  prompt: string;
-  aspectRatio?: "1:1" | "3:4" | "4:3" | "9:16" | "16:9";
-  base64Source?: string;
 }
 
 export interface User {
