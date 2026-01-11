@@ -30,7 +30,7 @@ export async function* getStreamingTutorResponse(
 ) {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
-    throw new Error("AUTH_REQUIRED: No API key provided.");
+    throw new Error("AUTH_REQUIRED: API key missing.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -72,28 +72,35 @@ export async function* getStreamingTutorResponse(
     config.thinkingConfig = { thinkingBudget: 24576 };
   }
 
-  const stream = await ai.models.generateContentStream({
-    model: modelName,
-    contents,
-    config,
-  });
+  try {
+    const stream = await ai.models.generateContentStream({
+      model: modelName,
+      contents,
+      config,
+    });
 
-  for await (const chunk of stream) {
-    const text = chunk.text || "";
-    const links: GroundingLink[] = [];
-    
-    if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) {
-      chunk.candidates[0].groundingMetadata.groundingChunks.forEach((chunk: any) => {
-        if (chunk.web) {
-          links.push({
-            uri: chunk.web.uri,
-            title: chunk.web.title
-          });
-        }
-      });
+    for await (const chunk of stream) {
+      const text = chunk.text || "";
+      const links: GroundingLink[] = [];
+      
+      if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) {
+        chunk.candidates[0].groundingMetadata.groundingChunks.forEach((chunk: any) => {
+          if (chunk.web) {
+            links.push({
+              uri: chunk.web.uri,
+              title: chunk.web.title
+            });
+          }
+        });
+      }
+
+      yield { text, links };
     }
-
-    yield { text, links };
+  } catch (error: any) {
+    if (error.message?.includes("429") || error.message?.includes("QUOTA") || error.message?.toLowerCase().includes("exhausted")) {
+      throw new Error("QUOTA_LIMIT_EXCEEDED: Key quota exhausted. Select a billing-enabled project key.");
+    }
+    throw error;
   }
 }
 
@@ -104,7 +111,7 @@ export async function getDialogueSuggestions(history: Message[]): Promise<string
   const ai = new GoogleGenAI({ apiKey });
   const context = history.slice(-3).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
   
-  const promptText = `Suggest 3 very short, conversational replies for the user. Keep them under 6 words. Context: ${context}`;
+  const promptText = `Suggest 3 very short, conversational suggested replies for the user. Context: ${context}`;
 
   try {
     const response = await ai.models.generateContent({
@@ -120,16 +127,15 @@ export async function getDialogueSuggestions(history: Message[]): Promise<string
     });
     return JSON.parse(response.text || "[]");
   } catch (error) {
-    return ["Explain more!", "Draw a diagram!", "Give me a test!"];
+    return ["Tell me more!", "Draw a diagram!", "Give me a test!"];
   }
 }
 
 export async function generateTutorImage(config: ImageGenerationConfig): Promise<string> {
   const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("AUTH_REQUIRED: No key selected.");
+  if (!apiKey) throw new Error("AUTH_REQUIRED: API key missing.");
 
   const ai = new GoogleGenAI({ apiKey });
-  // Always use the standard model name for image generation
   const modelName = 'gemini-2.5-flash-image';
 
   const parts: any[] = [];
@@ -140,7 +146,7 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
         mimeType: 'image/png'
       }
     });
-    parts.push({ text: `Modify this image based on: ${config.prompt}` });
+    parts.push({ text: `Update this architectural visual: ${config.prompt}` });
   } else {
     parts.push({ text: config.prompt });
   }
@@ -161,14 +167,13 @@ export async function generateTutorImage(config: ImageGenerationConfig): Promise
         return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
       }
     }
+    throw new Error("Empty response from synthesis engine.");
   } catch (error: any) {
-    if (error.message?.includes("429") || error.message?.includes("quota")) {
-      throw new Error("QUOTA_EXHAUSTED: Free tier quota exceeded. Switching key required.");
+    if (error.message?.includes("429") || error.message?.includes("QUOTA") || error.message?.toLowerCase().includes("exhausted")) {
+      throw new Error("QUOTA_LIMIT_EXCEEDED: Image quota exhausted. Select a billing-enabled project key.");
     }
     throw error;
   }
-
-  throw new Error("Synthesis failed to return image data.");
 }
 
 export async function getVisualSuggestions(history: Message[], currentPrompt?: string): Promise<string[]> {
@@ -178,7 +183,7 @@ export async function getVisualSuggestions(history: Message[], currentPrompt?: s
   const ai = new GoogleGenAI({ apiKey });
   const context = history.slice(-3).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
   
-  const promptText = `Suggest 3 creative visual prompts for an AI image generator based on this context: ${context}. Return only a JSON array of 3 strings.`;
+  const promptText = `Suggest 3 creative visual prompts for an AI image generator based on: ${context}. Return only JSON array.`;
 
   try {
     const response = await ai.models.generateContent({

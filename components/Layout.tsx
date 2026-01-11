@@ -1,7 +1,6 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatSession, User } from '../types';
-import { IntellexaIcon, IntellexaWordmark } from './Branding';
+import { IntellexaWordmark } from './Branding';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,6 +13,7 @@ interface LayoutProps {
   onReset: () => void;
   onGoHome: () => void;
   onLogout: () => void;
+  onSwitchKey: () => void;
 }
 
 const Layout: React.FC<LayoutProps> = ({ 
@@ -27,6 +27,7 @@ const Layout: React.FC<LayoutProps> = ({
   onReset,
   onGoHome,
   onLogout,
+  onSwitchKey,
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showUserInfo, setShowUserInfo] = useState(false);
@@ -49,14 +50,14 @@ const Layout: React.FC<LayoutProps> = ({
       <div className="p-8 flex items-center justify-between">
         <div className="flex flex-col cursor-pointer" onClick={onGoHome}>
           <IntellexaWordmark />
-          <p className="text-[10px] text-purple-400/80 font-black uppercase tracking-[0.3em] mt-2 ml-1">Your Study Buddy</p>
+          <p className="text-[10px] text-purple-400/80 font-black uppercase tracking-[0.3em] mt-2 ml-1">Study Console</p>
         </div>
         <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-purple-400 p-2">
           <i className="fas fa-times text-xl"></i>
         </button>
       </div>
 
-      <div className="px-6 pb-6">
+      <div className="px-6 pb-6 space-y-3">
         <button 
           onClick={() => {
             onNewChat();
@@ -65,7 +66,14 @@ const Layout: React.FC<LayoutProps> = ({
           className="w-full py-4 px-5 bg-gradient-to-r from-purple-600 to-indigo-800 hover:from-purple-500 hover:to-indigo-700 text-white rounded-2xl text-[11px] font-black flex items-center justify-center gap-3 transition-all active:scale-[0.97] shadow-xl shadow-purple-900/20 group"
         >
           <i className="fas fa-plus text-[10px]"></i>
-          NEW CHAT
+          NEW SESSION
+        </button>
+        <button 
+          onClick={onSwitchKey}
+          className="w-full py-2.5 px-5 bg-zinc-900 border border-white/5 hover:border-purple-500/50 text-zinc-400 hover:text-white rounded-xl text-[9px] font-black flex items-center justify-center gap-2 transition-all uppercase tracking-widest"
+        >
+          <i className="fas fa-key text-[9px]"></i>
+          Switch API Key
         </button>
       </div>
 
@@ -75,9 +83,9 @@ const Layout: React.FC<LayoutProps> = ({
            <button onClick={onReset} title="Reset Workspace" className="text-[10px] text-red-400/50 hover:text-red-400 transition-colors uppercase font-black">Reset</button>
         </div>
         {sessions.length === 0 ? (
-          <div className="px-3 py-10 text-center opacity-30">
+          <div className="px-3 py-10 text-center opacity-20">
             <i className="fas fa-cube mb-3 text-2xl block text-purple-500"></i>
-            <p className="text-[10px] uppercase font-bold tracking-widest">Workspace Empty</p>
+            <p className="text-[10px] uppercase font-bold tracking-widest">Workspace Offline</p>
           </div>
         ) : (
           sessions.map((session) => (
@@ -85,7 +93,7 @@ const Layout: React.FC<LayoutProps> = ({
               key={session.id}
               className={`group relative flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm transition-all cursor-pointer border ${
                 activeSessionId === session.id 
-                ? 'bg-white/5 text-purple-400 border border-purple-500/20 shadow-lg' 
+                ? 'bg-white/5 text-purple-400 border-purple-500/20 shadow-lg' 
                 : 'text-zinc-500 border-transparent hover:bg-white/5'
               }`}
               onClick={() => {
@@ -95,7 +103,7 @@ const Layout: React.FC<LayoutProps> = ({
             >
               <i className={`fas fa-terminal text-xs ${activeSessionId === session.id ? 'text-purple-500' : 'text-zinc-600'}`}></i>
               <span className="flex-1 truncate font-bold text-xs">
-                {session.title || "Untitled Project"}
+                {session.title || "Untitled Session"}
               </span>
               <button 
                 onClick={(e) => {
@@ -111,17 +119,14 @@ const Layout: React.FC<LayoutProps> = ({
         )}
       </nav>
 
-      <div className="p-6 border-t border-white/5 space-y-4">
-        <div className="flex items-center justify-end">
-           <button onClick={onLogout} className="text-[10px] font-black text-zinc-500 uppercase tracking-widest hover:text-red-400 transition-colors">Sign Out</button>
-        </div>
+      <div className="p-6 border-t border-white/5">
         <div className="flex items-center gap-3 p-3 bg-zinc-900/50 rounded-xl border border-white/5">
            <div className="w-10 h-10 rounded-xl overflow-hidden bg-purple-500/20 border border-purple-500/20">
               <img src={user?.avatar} alt="User" className="w-full h-full object-cover avatar-animated" />
            </div>
            <div className="flex flex-col min-w-0">
               <span className="text-xs font-black text-white truncate">{user?.name}</span>
-              <span className="text-[9px] text-purple-500 font-bold uppercase tracking-widest">Study Rank</span>
+              <span className="text-[9px] text-purple-500 font-bold uppercase tracking-widest">Architect</span>
            </div>
         </div>
       </div>
@@ -150,7 +155,7 @@ const Layout: React.FC<LayoutProps> = ({
             </button>
             <div className="flex flex-col">
                <h1 className="text-sm font-black text-white tracking-tight">
-                 {activeSessionId ? (sessions.find(s => s.id === activeSessionId)?.title || "Study Console") : "Buddy Idle"}
+                 {activeSessionId ? (sessions.find(s => s.id === activeSessionId)?.title || "Study Hub") : "Standby"}
                </h1>
             </div>
           </div>
@@ -166,12 +171,12 @@ const Layout: React.FC<LayoutProps> = ({
                       <img src={user?.avatar} className="w-12 h-12 rounded-xl border border-purple-500/20 avatar-animated" />
                       <div>
                         <p className="text-xs font-black text-white">{user?.name}</p>
-                        <p className="text-[9px] font-bold text-purple-500 uppercase tracking-widest">Study Buddy Status</p>
+                        <p className="text-[9px] font-bold text-purple-500 uppercase tracking-widest">Active Profile</p>
                       </div>
                     </div>
-                    <div className="pt-4 border-t border-purple-500/10 flex justify-between">
-                       <button onClick={onLogout} className="text-[10px] font-black text-red-500 uppercase tracking-widest">Log Out</button>
-                       <button onClick={() => setShowUserInfo(false)} className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Close</button>
+                    <div className="pt-4 border-t border-purple-500/10 flex flex-col gap-2">
+                       <button onClick={onSwitchKey} className="w-full py-2 bg-zinc-900 rounded-lg text-[10px] font-black text-white uppercase tracking-widest">Change API Key</button>
+                       <button onClick={onLogout} className="text-[10px] font-black text-red-500 uppercase tracking-widest py-2">Sign Out</button>
                     </div>
                   </div>
                 )}

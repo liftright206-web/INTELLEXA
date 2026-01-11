@@ -14,7 +14,7 @@ const USER_KEY = 'intellexa_user_v3';
 const App: React.FC = () => {
   const [view, setView] = useState<'landing' | 'auth' | 'chat'>('landing');
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [apiKeyReady, setApiKeyReady] = useState<boolean>(true); // Default to true to avoid blocking, handled on fail
+  const [apiKeyReady, setApiKeyReady] = useState<boolean>(false);
   
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem(USER_KEY);
@@ -58,12 +58,28 @@ const App: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const handleOpenKeyPicker = async () => {
+    const win = window as any;
+    if (win.aistudio) {
+      try {
+        await win.aistudio.openSelectKey();
+        // Force refresh the state
+        const hasKey = await win.aistudio.hasSelectedApiKey();
+        setApiKeyReady(hasKey);
+      } catch (e) {
+        console.error("Failed to open key picker", e);
+      }
+    }
+  };
+
   useEffect(() => {
     const checkKey = async () => {
       const win = window as any;
       if (win.aistudio) {
         const hasKey = await win.aistudio.hasSelectedApiKey();
         setApiKeyReady(hasKey);
+      } else {
+        setApiKeyReady(!!process.env.API_KEY);
       }
     };
     checkKey();
@@ -105,14 +121,6 @@ const App: React.FC = () => {
     }
   }, [debouncedVisualPrompt, showVisualArchitect, refiningImage]);
 
-  const handleOpenKeyPicker = async () => {
-    const win = window as any;
-    if (win.aistudio) {
-      await win.aistudio.openSelectKey();
-      setApiKeyReady(true);
-    }
-  };
-
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const messages = activeSession ? activeSession.messages : [];
 
@@ -150,6 +158,10 @@ const App: React.FC = () => {
 
   const sendMessage = async (text: string, image?: string) => {
     if (!activeSessionId) return;
+
+    if (!apiKeyReady) {
+      await handleOpenKeyPicker();
+    }
 
     setDialogueChips([]);
     const userMessage: Message = {
@@ -207,9 +219,9 @@ const App: React.FC = () => {
       console.error(error);
       let errorMsg = `Communication Error: ${error.message}.`;
       
-      if (error.message?.includes("429") || error.message?.includes("quota")) {
-        errorMsg = "Quota Exceeded: The system key is busy. Please select a personal API key with billing enabled to continue.";
-        handleOpenKeyPicker();
+      if (error.message?.includes("QUOTA") || error.message?.includes("429")) {
+        errorMsg = "Critical: Current API project quota exhausted. Please select a BILLING-ENABLED project key from the dialog that just appeared.";
+        await handleOpenKeyPicker();
       }
 
       setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: s.messages.map(msg => msg.id === assistantMsgId ? { ...msg, content: errorMsg, isThinking: false } : msg) } : s));
@@ -245,7 +257,7 @@ const App: React.FC = () => {
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: refiningImage ? `Polishing visual: ${finalConfig.prompt}` : `Synthesizing visual: ${finalConfig.prompt}`,
+      content: refiningImage ? `Requesting visual refinement: ${finalConfig.prompt}` : `Synthesizing educational visual: ${finalConfig.prompt}`,
       timestamp: new Date()
     };
     setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: [...s.messages, userMsg] } : s));
@@ -255,7 +267,7 @@ const App: React.FC = () => {
       const assistantMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: refiningImage ? `Polished architecture ready!` : `I've synthesized the visual you requested!`,
+        content: refiningImage ? `Polishing complete. Architectural model updated.` : `Synthesis successful. Visual architecture rendered.`,
         timestamp: new Date(),
         attachments: [imageUrl]
       };
@@ -264,9 +276,9 @@ const App: React.FC = () => {
       console.error(error);
       let errorText = `Visual Synthesis Failed: ${error.message}.`;
       
-      if (error.message?.includes("QUOTA_EXHAUSTED") || error.message?.includes("429")) {
-        errorText = "Visual Synthesis Failed: Quota limit reached on current key. Please select a billing-enabled API key via the Command Center.";
-        handleOpenKeyPicker();
+      if (error.message?.includes("QUOTA") || error.message?.includes("429")) {
+        errorText = "Visual Synthesis Failed: Your current API key has NO QUOTA for image generation. You MUST select an API key from a Google Cloud project with ACTIVE BILLING.";
+        await handleOpenKeyPicker();
       }
 
       const errorMsg: Message = {
@@ -286,8 +298,6 @@ const App: React.FC = () => {
   const handleAction = async (actionType: 'mock-test' | 'flowchart' | 'summary' | 'problem-solver' | 'visual-render') => {
     if (isTyping || isGeneratingImage) return;
     if (actionType === 'visual-render') {
-      setVisualConfig(prev => ({ ...prev, prompt: inputValue }));
-      setRefiningImage(null);
       setShowVisualArchitect(true);
       return;
     }
@@ -327,6 +337,7 @@ const App: React.FC = () => {
         onReset={() => { if(confirm("Reset Workspace? This will delete all history.")) { setSessions([]); handleNewChat(); } }}
         onGoHome={() => setView('landing')}
         onLogout={handleLogout}
+        onSwitchKey={handleOpenKeyPicker}
       >
         <div className="flex flex-col h-full relative">
           
