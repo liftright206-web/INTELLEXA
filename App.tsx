@@ -5,11 +5,17 @@ import LandingPage from './components/LandingPage';
 import Auth from './components/Auth';
 import QuotesBar from './components/QuotesBar';
 import RocketTransition from './components/RocketTransition';
-import { GradeLevel, Subject, Message, ChatSession, User, ChatMode, GroundingLink } from './types';
+import { GradeLevel, Subject, Message, ChatSession, User, ChatMode, GroundingLink, LearningEnvironment } from './types';
 import { getStreamingTutorResponse, getDialogueSuggestions } from './services/geminiService';
 
-const STORAGE_KEY = 'intellexa_history_v3';
-const USER_KEY = 'intellexa_user_v3';
+const STORAGE_KEY = 'intellexa_history_v4';
+const USER_KEY = 'intellexa_user_v4';
+const ENV_KEY = 'intellexa_envs_v4';
+
+const DEFAULT_ENVS: LearningEnvironment[] = [
+  { id: 'env-1', name: 'General Hub', icon: 'fa-brain', subject: Subject.General, complexity: 'adept', archetype: 'socratic' },
+  { id: 'env-2', name: 'Math Studio', icon: 'fa-calculator', subject: Subject.Mathematics, complexity: 'master', archetype: 'technical' }
+];
 
 const App: React.FC = () => {
   const [view, setView] = useState<'landing' | 'auth' | 'chat'>('landing');
@@ -19,6 +25,22 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem(USER_KEY);
     return saved ? JSON.parse(saved) : null;
+  });
+
+  const [environments, setEnvironments] = useState<LearningEnvironment[]>(() => {
+    const saved = localStorage.getItem(ENV_KEY);
+    return saved ? JSON.parse(saved) : DEFAULT_ENVS;
+  });
+
+  const [activeEnvId, setActiveEnvId] = useState<string>(environments[0].id);
+  const [showEnvModal, setShowEnvModal] = useState(false);
+  const [newEnv, setNewEnv] = useState<Partial<LearningEnvironment>>({
+    name: '',
+    icon: 'fa-microscope',
+    subject: Subject.General,
+    complexity: 'adept',
+    archetype: 'storyteller',
+    customInstructions: ''
   });
   
   const [sessions, setSessions] = useState<ChatSession[]>(() => {
@@ -48,6 +70,12 @@ const App: React.FC = () => {
   const [dialogueChips, setDialogueChips] = useState<string[]>([]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const activeEnv = environments.find(e => e.id === activeEnvId);
+
+  useEffect(() => {
+    localStorage.setItem(ENV_KEY, JSON.stringify(environments));
+  }, [environments]);
 
   const handleOpenKeyPicker = async () => {
     const win = window as any;
@@ -103,17 +131,28 @@ const App: React.FC = () => {
       messages: [{
         id: 'welcome',
         role: 'assistant',
-        content: `LOGIC GATES: OPEN! Welcome back, ${user?.name || 'Friend'}! I'm Intellexa. I can architect solutions for your homework or draw structural diagrams for complex concepts. What's on your mind?`,
+        content: `LOGIC GATES: OPEN! Welcome to the ${activeEnv?.name || 'Hub'}! I'm Intellexa. Architecting solutions within the ${activeEnv?.subject} framework. Ready to begin?`,
         timestamp: new Date()
       }],
       createdAt: new Date(),
       grade: GradeLevel.HighSchool,
       subject: Subject.General,
-      mode: 'lite'
+      mode: 'lite',
+      environmentId: activeEnvId
     };
     setSessions([newSession, ...sessions]);
     setActiveSessionId(newId);
     setDialogueChips(["Let's explore Math!", "How about Science?", "Explain how AI works."]);
+  };
+
+  const handleCreateEnv = () => {
+    if (!newEnv.name) return;
+    const id = `env-${Date.now()}`;
+    const env: LearningEnvironment = { ...newEnv as LearningEnvironment, id };
+    setEnvironments([...environments, env]);
+    setActiveEnvId(id);
+    setShowEnvModal(false);
+    setNewEnv({ name: '', icon: 'fa-microscope', subject: Subject.General, complexity: 'adept', archetype: 'storyteller', customInstructions: '' });
   };
 
   const startTransitionToChat = () => {
@@ -159,7 +198,7 @@ const App: React.FC = () => {
     try {
       let accumulatedContent = '';
       let accumulatedLinks: GroundingLink[] = [];
-      const stream = getStreamingTutorResponse(userMessage.content, messages.slice(-10), chatMode);
+      const stream = getStreamingTutorResponse(userMessage.content, messages.slice(-10), chatMode, activeEnv);
 
       for await (const chunk of stream) {
         accumulatedContent += chunk.text;
@@ -240,6 +279,10 @@ const App: React.FC = () => {
         sessions={sessions}
         activeSessionId={activeSessionId}
         user={user}
+        environments={environments}
+        activeEnvId={activeEnvId}
+        onEnvSelect={setActiveEnvId}
+        onNewEnv={() => setShowEnvModal(true)}
         onSessionSelect={setActiveSessionId}
         onNewChat={handleNewChat}
         onDeleteSession={(id) => { setSessions(prev => prev.filter(s => s.id !== id)); if (activeSessionId === id) setActiveSessionId(''); }}
@@ -279,7 +322,7 @@ const App: React.FC = () => {
                       <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce [animation-delay:0.4s]"></div>
                     </div>
                     <span className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em]">
-                      PROCESSING...
+                      SYNTHESIZING...
                     </span>
                   </div>
                 </div>
@@ -310,7 +353,7 @@ const App: React.FC = () => {
 
               <div className="relative glass-card p-1.5 rounded-3xl shadow-2xl border-white/10 overflow-hidden">
                 <form onSubmit={handleSendMessage} className="flex items-center relative gap-1 px-4">
-                  <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Engage with Intellexa..." className="flex-1 py-3.5 px-3 bg-transparent focus:outline-none text-white font-medium text-base md:text-lg" />
+                  <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder={`Engage with Intellexa in ${activeEnv?.name || 'Lab'}...`} className="flex-1 py-3.5 px-3 bg-transparent focus:outline-none text-white font-medium text-base md:text-lg" />
                   <button type="submit" disabled={isTyping || !inputValue.trim()} className="w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center bg-purple-600 text-white shadow-lg hover:bg-purple-500 disabled:opacity-20 active:scale-95 transition-all"><i className="fas fa-paper-plane"></i></button>
                 </form>
               </div>
@@ -318,6 +361,58 @@ const App: React.FC = () => {
           </div>
           <QuotesBar />
         </div>
+
+        {showEnvModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/80 backdrop-blur-lg animate-in fade-in">
+            <div className="w-full max-w-xl glass-card rounded-[32px] p-8 border-white/10 shadow-2xl animate-in zoom-in-95">
+               <div className="flex justify-between items-center mb-8">
+                  <div>
+                    <h3 className="text-2xl font-black text-white tracking-tight">Architect New Lab</h3>
+                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Environment Creation Protocol</p>
+                  </div>
+                  <button onClick={() => setShowEnvModal(false)} className="text-zinc-500 hover:text-white transition-colors"><i className="fas fa-times text-2xl"></i></button>
+               </div>
+
+               <div className="space-y-6">
+                  <div>
+                    <label className="block text-[10px] font-black text-purple-500 uppercase tracking-widest mb-2">Environment Name</label>
+                    <input type="text" value={newEnv.name} onChange={e => setNewEnv({...newEnv, name: e.target.value})} placeholder="e.g. Quantum Physics Hub" className="w-full px-5 py-3.5 bg-zinc-900 border border-white/5 rounded-2xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 font-medium" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-purple-500 uppercase tracking-widest mb-2">Subject Focus</label>
+                      <select value={newEnv.subject} onChange={e => setNewEnv({...newEnv, subject: e.target.value as Subject})} className="w-full px-5 py-3.5 bg-zinc-900 border border-white/5 rounded-2xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 font-medium appearance-none">
+                        {Object.values(Subject).map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-purple-500 uppercase tracking-widest mb-2">Icon</label>
+                      <select value={newEnv.icon} onChange={e => setNewEnv({...newEnv, icon: e.target.value})} className="w-full px-5 py-3.5 bg-zinc-900 border border-white/5 rounded-2xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 font-medium appearance-none">
+                        <option value="fa-microscope">Microscope</option>
+                        <option value="fa-atom">Atom</option>
+                        <option value="fa-book-open">Book</option>
+                        <option value="fa-code">Code</option>
+                        <option value="fa-flask">Flask</option>
+                        <option value="fa-globe">Globe</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-purple-500 uppercase tracking-widest mb-2">Instructional Archetype</label>
+                    <div className="grid grid-cols-3 gap-2">
+                       {['storyteller', 'technical', 'socratic'].map(arch => (
+                         <button key={arch} onClick={() => setNewEnv({...newEnv, archetype: arch as any})} className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${newEnv.archetype === arch ? 'bg-purple-600 border-purple-400 text-white' : 'bg-zinc-900 border-white/5 text-zinc-500'}`}>{arch}</button>
+                       ))}
+                    </div>
+                  </div>
+
+                  <button onClick={handleCreateEnv} disabled={!newEnv.name} className="w-full py-4 bg-purple-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-xl hover:bg-purple-500 active:scale-95 disabled:opacity-50">INITIALIZE ENVIRONMENT</button>
+               </div>
+            </div>
+          </div>
+        )}
       </Layout>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChatSession, User } from '../types';
+import { ChatSession, User, LearningEnvironment } from '../types';
 import { IntellexaWordmark } from './Branding';
 
 interface LayoutProps {
@@ -7,6 +7,10 @@ interface LayoutProps {
   sessions: ChatSession[];
   activeSessionId: string;
   user: User | null;
+  environments: LearningEnvironment[];
+  activeEnvId: string;
+  onEnvSelect: (id: string) => void;
+  onNewEnv: () => void;
   onSessionSelect: (id: string) => void;
   onNewChat: () => void;
   onDeleteSession: (id: string) => void;
@@ -21,6 +25,10 @@ const Layout: React.FC<LayoutProps> = ({
   sessions,
   activeSessionId,
   user,
+  environments,
+  activeEnvId,
+  onEnvSelect,
+  onNewEnv,
   onSessionSelect,
   onNewChat,
   onDeleteSession,
@@ -68,6 +76,31 @@ const Layout: React.FC<LayoutProps> = ({
           <i className="fas fa-plus text-[10px]"></i>
           NEW SESSION
         </button>
+      </div>
+
+      <div className="px-6 mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Active Labs</p>
+          <button onClick={onNewEnv} className="text-purple-400 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
+             <i className="fas fa-plus-circle"></i> ADD
+          </button>
+        </div>
+        <div className="flex flex-col gap-2">
+          {environments.map(env => (
+            <button 
+              key={env.id} 
+              onClick={() => onEnvSelect(env.id)}
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[11px] font-black transition-all border ${
+                activeEnvId === env.id 
+                ? 'bg-purple-600/20 border-purple-500/30 text-purple-400 shadow-lg shadow-purple-500/5' 
+                : 'bg-zinc-900 border-white/5 text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              <i className={`fas ${env.icon}`}></i>
+              <span className="truncate">{env.name}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">

@@ -1,31 +1,47 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Message, ChatMode, GroundingLink } from "../types";
+import { Message, ChatMode, GroundingLink, LearningEnvironment } from "../types";
 
-const SYSTEM_INSTRUCTION = `You are Intellexa, a brilliant, witty, and highly interactive AI Architect and Education Specialist. 
+const BASE_SYSTEM_INSTRUCTION = `You are Intellexa, a brilliant, witty, and highly interactive AI Architect and Education Specialist. 
 
 CORE MISSION: You are NOT a search engine. You are a CONVERSATIONAL TUTOR. Your goal is to architect knowledge through active dialogue, not just information dumps.
 
 Persona Guidelines:
 - BE SOCRATIC: Instead of just giving the answer, guide the user to it. 
-- TWO-WAY PROTOCOL: Every single response MUST end with an engaging follow-up question, a "Challenge Prompt," or a request for the user to try a task.
 - STYLE: Witty, charismatic, and encouraging. Use simple English but sophisticated structural logic.
-- NO JARGON: Explain complex ideas with real-world analogies.
 
 Structural Rules:
 1. Explain the concept briefly.
 2. Use ALL CAPS for headers.
 3. PROVIDE DIAGRAMS: You MUST provide Mermaid.js diagrams for structural concepts using \`\`\`mermaid [CODE] \`\`\`.
-4. CHECK FOR UNDERSTANDING: Never assume they "got it." Ask them to explain a piece back to you or solve a mini-puzzle.
+4. CHECK FOR UNDERSTANDING: Every single response MUST end with an engaging follow-up question.
 
 CRITICAL FORMATTING:
 - NO double asterisks for bolding. NO italics.
-- Use plain text, numbers, and spacing.
-- ALWAYS end with a conversation starter to keep the two-way flow alive.`;
+- Use plain text, numbers, and spacing.`;
+
+function buildSystemInstruction(env?: LearningEnvironment): string {
+  if (!env) return BASE_SYSTEM_INSTRUCTION;
+
+  let envContext = `\n\nCURRENT ACTIVE ENVIRONMENT: ${env.name.toUpperCase()}\n`;
+  envContext += `SUBJECT FOCUS: ${env.subject}\n`;
+  
+  if (env.complexity === 'novice') envContext += `COMPLEXITY: Extreme simplicity. Use analogies for 5-year-olds.\n`;
+  if (env.complexity === 'master') envContext += `COMPLEXITY: High-level academic depth. Assume advanced prior knowledge.\n`;
+
+  if (env.archetype === 'storyteller') envContext += `ARCHETYPE: Use narrative flow and historical anecdotes.\n`;
+  if (env.archetype === 'technical') envContext += `ARCHETYPE: Precise, data-driven, and focused on rigorous proofs or technical mechanics.\n`;
+  if (env.archetype === 'socratic') envContext += `ARCHETYPE: Ask 2-3 deep questions for every 1 answer given.\n`;
+
+  if (env.customInstructions) envContext += `ADDITIONAL PROTOCOLS: ${env.customInstructions}\n`;
+
+  return BASE_SYSTEM_INSTRUCTION + envContext;
+}
 
 export async function* getStreamingTutorResponse(
   prompt: string,
   history: Message[],
-  mode: ChatMode = 'lite'
+  mode: ChatMode = 'lite',
+  environment?: LearningEnvironment
 ) {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
@@ -50,7 +66,7 @@ export async function* getStreamingTutorResponse(
   contents.push({ role: 'user', parts: [{ text: prompt }] });
 
   const config: any = {
-    systemInstruction: SYSTEM_INSTRUCTION,
+    systemInstruction: buildSystemInstruction(environment),
     temperature: 0.8,
   };
 

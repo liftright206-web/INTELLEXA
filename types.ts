@@ -16,6 +16,16 @@ export enum Subject {
 
 export type ChatMode = 'lite' | 'search' | 'complex';
 
+export interface LearningEnvironment {
+  id: string;
+  name: string;
+  icon: string;
+  subject: Subject;
+  complexity: 'novice' | 'adept' | 'master';
+  archetype: 'storyteller' | 'technical' | 'socratic';
+  customInstructions?: string;
+}
+
 export interface GroundingLink {
   uri: string;
   title: string;
@@ -45,4 +55,5 @@ export interface ChatSession {
   grade: GradeLevel;
   subject: Subject;
   mode: ChatMode;
+  environmentId?: string;
 }
